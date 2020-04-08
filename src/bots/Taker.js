@@ -1,16 +1,10 @@
 const Bot = require('./Bot.js');
-const utils = require('../utils/utils.js');
-const bn = utils.bn;
-const STATE = utils.STATE;
-const utilsOracle = require('../utils/utilsOracle.js');
+const { bn, STATE } = require('../utils/utils.js');
+const { getOracleData } = require('../utils/utilsOracle.js');
 
 module.exports = class Taker extends Bot {
   constructor() {
     super();
-  }
-
-  async init() {
-    await this.approveAuction();
   }
 
   elementsLog (elementLength) {
@@ -54,7 +48,7 @@ module.exports = class Taker extends Bot {
   }
 
   async getTx (localElement) {
-    const debtOracleData = await utilsOracle.getOracleData(localElement.debt.oracle);
+    const debtOracleData = await getOracleData(localElement.debt.oracle);
 
     return process.walletManager.sendTx(
       process.contracts.auction.methods.take(
@@ -71,13 +65,13 @@ module.exports = class Taker extends Bot {
     const walletManager = process.walletManager;
     const allowance = bn(await baseToken.methods.allowance(walletManager.address, auction._address).call());
 
-    if (allowance.isZero()) {
+    if (!allowance.isZero()) {
       const approveFunction = baseToken.methods.approve(
         auction._address,
         process.w3.utils.toTwosComplement(-1)
       );
 
-      await walletManager.sendTx(approveFunction, { address: walletManager.address });
+      await walletManager.sendTx(approveFunction);
     }
   }
 };

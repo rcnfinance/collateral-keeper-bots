@@ -1,5 +1,5 @@
-const utils = require('./utils/utils.js');
 const { IntentAction, Wallet, IntentBuilder, Provider, DefaultConf, Contract } = require('marmojs');
+const { STATE } = require('./utils/utils.js');
 
 module.exports = class WalletManager {
   constructor(pk) {
@@ -12,26 +12,39 @@ module.exports = class WalletManager {
     this.provider.asDefault();
   }
 
-  async sendTx(func, objTx = { value: undefined, gasPrice: undefined, }) {
+  async sendTx(tx) {
     const action = new IntentAction(
-      func._parent._address,
+      tx._parent._address,
       0,
-      func.encodeABI(),
-      new Contract(func._parent._address).functionEncoder(
-        func._method.name,
-        func._method.inputs.map((x) => x.type),
-        func._method.outputs.map((x) => x.type)
+      tx.encodeABI(),
+      new Contract(tx._parent._address).functionEncoder(
+        tx._method.name,
+        tx._method.inputs.map((x) => x.type),
+        tx._method.outputs.map((x) => x.type)
       )
-    )
+    );
 
     const intent = new IntentBuilder()
-        .withIntentAction(action)
-        .withSalt(`0x${new Date().getTime()}`)
-        .build();
-    
+      .withIntentAction(action)
+      .withSalt(`0x${new Date().getTime()}`)
+      .build();
+
     const signedIntent = await this.wallet.sign(intent);
     await signedIntent.relay(this.provider);
-    
-    return "0x";
+
+    return signedIntent;
+  }
+
+  async getState(signedIntent) {
+    const code = (await signedIntent.status(this.provider)).code;
+
+    console.log(await signedIntent.status(this.provider))
+
+    if (code === 0 || code === 1)
+      return STATE.busy;
+    else if (code === 2)
+      return STATE.finish;
+    else if (code === 3)
+      return STATE.Error;
   }
 };

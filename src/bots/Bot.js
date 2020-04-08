@@ -1,6 +1,4 @@
-const utils = require('../utils/utils.js');
-const sleep = utils.sleep;
-const STATE = utils.STATE;
+const { sleep, STATE, bytes32 } = require('../utils/utils.js');
 
 module.exports = class Bot {
   constructor() {
@@ -13,10 +11,10 @@ module.exports = class Bot {
       this.elementsLog(elementLength);
 
       for (let i = 1; i < elementLength; i++) {
-        const localElement = this.elements[utils.bytes32(i)];
+        const localElement = this.elements[bytes32(i)];
 
         if (!localElement) { // Add the element if not exists
-          await this.addElement(utils.bytes32(i));
+          await this.addElement(bytes32(i));
           continue;
         }
 
@@ -29,7 +27,7 @@ module.exports = class Bot {
           }
         }
 
-        if (await this.canSendTx(localElement) && localElement.state == STATE.onGoing) {
+        if (await this.canSendTx(localElement) && localElement.state === STATE.onGoing) {
           this.sendTx(localElement);
         }
       }
@@ -50,14 +48,17 @@ module.exports = class Bot {
   async sendTx(localElement) {
     localElement.state = STATE.busy;
 
-    const tx = await process.walletManager.sendTx(await this.getTx(localElement));
+    const signedIntent = await process.walletManager.sendTx(await this.getTx(localElement));
 
-    if (tx instanceof Error){
-      localElement.state = STATE.error;
+    while(localElement.state === STATE.busy) {
+      localElement.state = await process.walletManager.getState(signedIntent);
+      await sleep(2000);
+    }
+
+    if (localElement.state === STATE.error){
       localElement.waitOnError = (2 * localElement.errorCount) + 1;
       localElement.errorCount++;
     } else {
-      localElement.state = STATE.onGoing;
       localElement.errorCount = 1;
     }
   }

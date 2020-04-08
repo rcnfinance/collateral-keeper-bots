@@ -1,8 +1,7 @@
-const utils = require('./utils.js');
-const bn = utils.bn;
+const { bn, address0x } = require('./utils.js');
 
 module.exports.toBaseToken = async (oracle, amount) => {
-  if (oracle === utils.address0x) // Debt in loanManagerToken
+  if (oracle === address0x) // Debt in loanManagerToken
     return amount;
 
   process.contracts.rateOracle._address = oracle;
