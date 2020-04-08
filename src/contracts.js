@@ -1,34 +1,32 @@
-const axios = require('axios');
-
 module.exports = async () => {
   const contracts = {};
 
   contracts.collateral = await new process.w3.eth.Contract(
-    await getAbi(process.env.collateralAddress),
+    require('./abis/collateralAbi.json'),
     process.env.collateralAddress
   );
 
   const auctionAddress = await contracts.collateral.methods.auction().call();
   contracts.auction = await new process.w3.eth.Contract(
-    await getAbi(auctionAddress),
+    require('./abis/collateralAuctionAbi.json'),
     auctionAddress
   );
 
   const loanManagerAddress = await contracts.collateral.methods.loanManager().call();
   contracts.loanManager = await new process.w3.eth.Contract(
-    await getAbi(loanManagerAddress),
+    require('./abis/loanManagerAbi.json'),
     loanManagerAddress
   );
 
   const debtEngineAddress = await contracts.loanManager.methods.debtEngine().call();
   contracts.debtEngine = await new process.w3.eth.Contract(
-    await getAbi(debtEngineAddress),
+    require('./abis/debtEngineAbi.json'),
     debtEngineAddress
   );
 
   const baseTokenAddress = await contracts.debtEngine.methods.token().call();
   contracts.baseToken = await new process.w3.eth.Contract(
-    await getAbi(baseTokenAddress),
+    require('./abis/ERC20Abi.json'),
     baseTokenAddress
   );
 
@@ -39,16 +37,3 @@ module.exports = async () => {
 
   return contracts;
 };
-
-async function getAbi(address) {
-  const urlBase = 'https://api-ropsten.etherscan.io/api?module=contract&action=getabi&address=';
-  const url = urlBase + address;
-
-  try {
-    const response = await axios.get(url);
-    return JSON.parse(response.data.result);
-  } catch (error) {
-    console.log(error);
-    return error;
-  }
-}
