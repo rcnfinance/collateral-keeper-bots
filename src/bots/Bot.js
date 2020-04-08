@@ -48,17 +48,14 @@ module.exports = class Bot {
   async sendTx(localElement) {
     localElement.state = STATE.busy;
 
-    const signedIntent = await process.walletManager.sendTx(await this.getTx(localElement));
+    const tx = await process.walletManager.sendTx(await this.getTx(localElement));
 
-    while(localElement.state === STATE.busy) {
-      localElement.state = await process.walletManager.getState(signedIntent);
-      await sleep(2000);
-    }
-
-    if (localElement.state === STATE.error){
+    if (tx instanceof Error){
+      localElement.state = STATE.error;
       localElement.waitOnError = (2 * localElement.errorCount) + 1;
       localElement.errorCount++;
     } else {
+      localElement.state = STATE.onGoing;
       localElement.errorCount = 1;
     }
   }

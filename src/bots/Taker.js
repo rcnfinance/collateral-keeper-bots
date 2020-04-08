@@ -8,7 +8,7 @@ module.exports = class Taker extends Bot {
   }
 
   elementsLog (elementLength) {
-    console.log('Total Auctions:', bn(elementLength).sub(bn(1)).toString());
+    console.log('#Taker/Total Auctions:', bn(elementLength).sub(bn(1)).toString());
   }
 
   async elementsLength () {
@@ -52,26 +52,30 @@ module.exports = class Taker extends Bot {
 
     return process.walletManager.sendTx(
       process.contracts.auction.methods.take(
-        localElement.id,
-        debtOracleData,
-        false
+        localElement.id, // Auction id, in uint256
+        debtOracleData,  // Oracle data of the debt
+        false            // If the auction contract, call the "onTake(uint256,uint256)" function
       )
     );
   }
 
   async approveAuction() {
-    const baseToken = process.contracts.baseToken;
-    const auction = process.contracts.auction;
-    const walletManager = process.walletManager;
-    const allowance = bn(await baseToken.methods.allowance(walletManager.address, auction._address).call());
+    for (let i = 0; i < process.walletManager.addresses.length; i++) {
+      const address = await process.walletManager.pop();
+      const baseToken = process.contracts.baseToken;
+      const auction = process.contracts.auction;
+      const allowance = bn(await baseToken.methods.allowance(address, auction._address).call());
 
-    if (!allowance.isZero()) {
-      const approveFunction = baseToken.methods.approve(
-        auction._address,
-        process.w3.utils.toTwosComplement(-1)
-      );
+      if (allowance.isZero()) {
+        const approveFunction = baseToken.methods.approve(
+          auction._address,
+          process.w3.utils.toTwosComplement(-1)
+        );
 
-      await walletManager.sendTx(approveFunction);
+        process.walletManager.sendTx(approveFunction, { address: address });
+      }
+
+      process.walletManager.push(address);
     }
   }
 };

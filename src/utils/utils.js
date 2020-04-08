@@ -1,3 +1,4 @@
+// auctions states
 module.exports.STATE = {
   onGoing: 'onGoing',
   error: 'error',

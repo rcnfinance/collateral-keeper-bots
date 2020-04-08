@@ -22,7 +22,6 @@
   "dependencies": {
     "commander": "^3.0.1",
     "web3": "^1.2.4",
-    "marmojs": "^0.2.19",
     "axios": "^0.19.1"
   }
 }

@@ -1,50 +1,90 @@
-const { IntentAction, Wallet, IntentBuilder, Provider, DefaultConf, Contract } = require('marmojs');
-const { STATE } = require('./utils/utils.js');
+const { bn, sleep } = require('./utils/utils.js');
 
 module.exports = class WalletManager {
-  constructor(pk) {
-    this.wallet = new Wallet(pk, DefaultConf.ROPSTEN);
-    this.address = this.wallet.address;
-    this.provider = new Provider(
-      process.env.node,
-      'https://marmo-relayer-ropsten.rcn.loans'
-    );
-    this.provider.asDefault();
+  constructor(pks) {
+    this.addresses = [];
+    this.initWallets(pks);
   }
 
-  async sendTx(tx) {
-    const action = new IntentAction(
-      tx._parent._address,
-      0,
-      tx.encodeABI(),
-      new Contract(tx._parent._address).functionEncoder(
-        tx._method.name,
-        tx._method.inputs.map((x) => x.type),
-        tx._method.outputs.map((x) => x.type)
-      )
-    );
+  initWallets(pks) {
+    for (let i = 0; i < pks.length; i++) {
+      const pk = pks[i];
 
-    const intent = new IntentBuilder()
-      .withIntentAction(action)
-      .withSalt(`0x${new Date().getTime()}`)
-      .build();
+      if (pk.slice(0, 2) !== '0x')
+        throw new Error('##Wallet Manager/Wrong format: ' + pk + ', use a hex bytes32 number(with 0x on the beginning)');
 
-    const signedIntent = await this.wallet.sign(intent);
-    await signedIntent.relay(this.provider);
+      if (process.w3.utils.isHexStrict(pk.slice(2)))
+        throw new Error('##Wallet Manager/There are no private keys to instance the signers: ' + pk);
 
-    return signedIntent;
+      const wallet = process.w3.eth.accounts.privateKeyToAccount(pk);
+      process.w3.eth.accounts.wallet.add(wallet);
+
+      this.push(wallet.address);
+    }
   }
 
-  async getState(signedIntent) {
-    const code = (await signedIntent.status(this.provider)).code;
+  async pop() {
+    while (!this.addresses.length) {
+      console.log('##Wallet Manager/Wait for an available wallet');
+      await sleep(2000);
+    }
 
-    console.log(await signedIntent.status(this.provider))
+    // TODO: whats happends if the wallet dont have eth balance?
 
-    if (code === 0 || code === 1)
-      return STATE.busy;
-    else if (code === 2)
-      return STATE.finish;
-    else if (code === 3)
-      return STATE.Error;
+    return this.addresses.pop();
+  }
+
+  push(address) {
+    return this.addresses.push(address);
+  }
+
+  async sendTx(func, objTx = { address: undefined, value: undefined, gasPrice: undefined, }) {
+    if(!objTx.address)
+      objTx.address = await this.pop();
+
+    objTx.value = objTx.value ? objTx.value : 0;
+
+    const gas = await this.estimateGas(func, objTx);
+    if (gas instanceof Error) return gas;
+
+    if(!objTx.gasPrice)
+      objTx.gasPrice = await process.w3.eth.getGasPrice();
+
+    const txHash = await func.send(
+      {
+        from: objTx.address,
+        gasPrice: objTx.gasPrice,
+        gas: gas,
+        value: objTx.value,
+      },
+      (error, txHash) => {
+        if (error) {
+          return error;
+        }
+        console.log('##Wallet Manager/Tx Hash: ' + txHash + ', ' + func._method.name + '(' + func.arguments + ')');
+      }
+    );
+
+    this.push(objTx.address);
+
+    return txHash;
+  }
+
+  async estimateGas(func, objTx) {
+    let gas;
+
+    try {
+      const gasLimit = (await process.w3.eth.getBlock('latest')).gasLimit;
+
+      gas = await func.estimateGas({
+        from: objTx.address,
+        gas: gasLimit,
+        value: objTx.value,
+      });
+    } catch (error) {
+      console.log(error);
+      return error;
+    }
+    return bn(gas).mul(bn(12000)).div(bn(10000));
   }
 };

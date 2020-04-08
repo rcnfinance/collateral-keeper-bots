@@ -7,8 +7,9 @@ const WalletManager = require('./src/WalletManager.js');
 async function main() {
   program
     .option(
-      '-p, --pk <value>',
-      'A private key'
+      '-p, --pks <addresses>',
+      'A private key',
+      (addresses) => addresses.split(',')
     )
     .option(
       '-c, --claim',
@@ -23,7 +24,7 @@ async function main() {
   process.env = require('./environment.js');
   process.w3 = new W3(new W3.providers.HttpProvider(process.env.node));
   process.contracts = await require('./src/contracts.js')();
-  process.walletManager = new WalletManager(program.pk);
+  process.walletManager = new WalletManager(program.pks);
 
   if (program.take) {
     const taker = new Taker();

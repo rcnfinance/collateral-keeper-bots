@@ -8,7 +8,7 @@ module.exports = class Claimer extends Bot {
   }
 
   elementsLog (elementLength) {
-    console.log('Total Entries:', bn(elementLength).sub(bn(1)).toString());
+    console.log('#Claimer/Total Entries:', bn(elementLength).sub(bn(1)).toString());
   }
 
   async elementsLength () {
@@ -45,7 +45,7 @@ module.exports = class Claimer extends Bot {
     return process.contracts.collateral.methods.claim(
       address0x,
       localElement.debtId,
-      '0x'
+      '0x' // TODO: send the oracle data
     );
   }
 
