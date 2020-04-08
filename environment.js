@@ -6,5 +6,5 @@ const nodes = {
 
 module.exports = {
   node: nodes.infura,
-  collateralAddress: '0xC122F95FFD312006551f6afE0980471386a7E8b0'
+  collateralAddress: '0xC697FBA35d6b2c52C9F34a2d54af2ec3084F2c5C'
 };
