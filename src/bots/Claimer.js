@@ -1,5 +1,5 @@
 const Bot = require('./Bot.js');
-const { bn, address0x, bytes32, bytes320x, getLastBlock } = require('../utils/utils.js');
+const { DEBT_STATUS, bn, address0x, bytes32, bytes320x, getLastBlock } = require('../utils/utils.js');
 const { toBaseToken } = require('../utils/utilsOracle.js');
 
 module.exports = class Claimer extends Bot {
@@ -59,7 +59,7 @@ module.exports = class Claimer extends Bot {
     const isCosigned = bytes32(debtToEntry) !== bytes320x;
 
     const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
-    const isPaid = bn(debtStatus).eq(bn(2)); // 2: paid debt status
+    const isPaid = bn(debtStatus).eq(DEBT_STATUS.paid);
     const isInAuction = await process.contracts.collateral.methods.inAuction(localEntry.entryId).call();
 
     return isCosigned && !isPaid && !isInAuction;

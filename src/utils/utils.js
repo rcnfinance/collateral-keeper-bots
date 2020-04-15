@@ -6,6 +6,14 @@ module.exports.STATE = {
   finish: 'finish',
 };
 
+module.exports.DEBT_STATUS = {
+  null: this.bn(0),
+  onGoing: this.bn(1),
+  paid: this.bn(2),
+  destroyed: this.bn(3),
+  error: this.bn(4),
+};
+
 module.exports.address0x = '0x0000000000000000000000000000000000000000';
 module.exports.bytes320x = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
