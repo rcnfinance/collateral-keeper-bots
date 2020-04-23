@@ -1,83 +1,92 @@
 const Bot = require('./Bot.js');
-const utils = require('../utils/utils.js');
-const bn = utils.bn;
-const STATE = utils.STATE;
-const utilsOracle = require('../utils/utilsOracle.js');
+const { getOracleData, bn } = require('../utils.js');
 
 module.exports = class Taker extends Bot {
-  constructor() {
-    super();
+  elementsAliveLog () {
+    console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
   }
 
-  async init() {
-    await this.approveAuction();
+  addElementLog (auctionId) {
+    console.log('#Taker/Add Auction:', auctionId);
   }
 
-  elementsLog (elementLength) {
-    console.log('Total Auctions:', bn(elementLength).sub(bn(1)).toString());
+  removeElementLog (auctionId) {
+    console.log('#Taker/Remove Auction:', auctionId);
   }
 
   async elementsLength () {
     return process.contracts.auction.methods.getAuctionsLength().call();
   }
 
-  async createElement (elementId) {
-    const entryId = await process.contracts.collateral.methods.auctionToEntry(elementId).call();
+  async createElement (auctionId) {
+    const auction = await process.contracts.auction.methods.auctions(auctionId).call();
+
+    const entryId = await process.contracts.collateral.methods.auctionToEntry(auctionId).call();
     const entry = await process.contracts.collateral.methods.entries(entryId).call();
     const debt = (await process.contracts.debtEngine.methods.debts(entry.debtId).call());
-    const auction = await process.contracts.auction.methods.auctions(elementId).call();
+
+    const baseToken = await process.contracts.collateral.methods.loanManagerToken().call();
 
     return {
-      debt: {
-        model: debt.model,
-        oracle: debt.oracle,
-      },
-      id: elementId,
-      fromToken: auction.fromToken,
-      startTime: auction.startTime,
-      limitDelta: auction.limitDelta,
-      startOffer: auction.startOffer,
-      amount: auction.amount,
-      limit: auction.limit,
+      debtOracle: debt.oracle,
+      id: auction.fromToken == baseToken ? 0 : auctionId,
     };
   }
 
-  async canSendTx (localElement) {
-    const auction = await process.contracts.auction.methods.auctions(localElement.id).call();
+  async canSendTx (localAuction) {
+    const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
 
-    if (auction.startTime == 0) {
-      localElement.state = STATE.finish;
-      return false;
-    } else {
-      return true;
+    return !(auction.startTime == 0);
+  }
+
+  async sendTx (localAuction) {
+    const debtOracleData = await getOracleData(localAuction.debtOracle);
+
+    const tx = await process.walletManager.sendTx(
+      process.contracts.auction.methods.take(
+        localAuction.id, // Auction id, in uint256
+        debtOracleData,  // Oracle data of the debt
+        false            // If the auction contract, call the "onTake(uint256,uint256)" function
+      )
+    );
+
+    if (tx instanceof Error) {
+      console.log('#Taker/sendTx/Auction on Error:', localAuction.id);
+      localAuction.inError = true;
     }
   }
 
-  async getTx (localElement) {
-    const debtOracleData = await utilsOracle.getOracleData(localElement.debt.oracle);
+  async isAlive (localAuction) {
+    if (localAuction.inError)
+      return false;
 
-    return process.walletManager.sendTx(
-      process.contracts.auction.methods.take(
-        localElement.id,
-        debtOracleData,
-        false
-      )
-    );
+    const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
+
+    if (auction)
+      return auction.startTime != 0;
+    else
+      return false;
   }
-
+};
+/*
   async approveAuction() {
-    const baseToken = process.contracts.baseToken;
-    const auction = process.contracts.auction;
-    const walletManager = process.walletManager;
-    const allowance = bn(await baseToken.methods.allowance(walletManager.address, auction._address).call());
+    for (let i = 0; i < process.walletManager.addresses.length; i++) {
+      const address = await process.walletManager.pop();
+      const baseToken = process.contracts.baseToken;
+      const auction = process.contracts.auction;
+      const allowance = bn(await baseToken.methods.allowance(address, auction._address).call());
 
-    if (allowance.isZero()) {
-      const approveFunction = baseToken.methods.approve(
-        auction._address,
-        process.w3.utils.toTwosComplement(-1)
-      );
+      if (allowance.isZero()) {
+        const approveFunction = baseToken.methods.approve(
+          auction._address,
+          process.w3.utils.toTwosComplement(-1)
+        );
 
-      await walletManager.sendTx(approveFunction, { address: walletManager.address });
+        process.walletManager.sendTx(approveFunction, { address: address });
+      }
+
+      process.walletManager.push(address);
     }
   }
 };
+*/

@@ -1,53 +1,63 @@
 const Bot = require('./Bot.js');
-const utils = require('../utils/utils.js');
-const utilsOracle = require('../utils/utilsOracle.js');
-const bn = utils.bn;
+const { PAID_DEBT_STATUS, address0x, getOracleData } = require('../utils.js');
 
 module.exports = class Claimer extends Bot {
-  constructor() {
-    super();
+  elementsAliveLog () {
+    console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
   }
 
-  elementsLog (elementLength) {
-    console.log('Total Entries:', bn(elementLength).sub(bn(1)).toString());
+  addElementLog (entryId) {
+    console.log('#Claimer/Add Entry:', entryId);
+  }
+
+  removeElementLog (entryId) {
+    console.log('#Claimer/Remove Entry:', entryId);
   }
 
   async elementsLength () {
     return process.contracts.collateral.methods.getEntriesLength().call();
   }
 
-  async createElement (elementId) {
-    const entry = await process.contracts.collateral.methods.entries(elementId).call();
-    const owner = await process.contracts.collateral.methods.ownerOf(elementId).call();
-    const debt = (await process.contracts.debtEngine.methods.debts(entry.debtId).call());
+  async createElement (entryId) {
+    const entry = await process.contracts.collateral.methods.entries(entryId).call();
+    const debt = await process.contracts.debtEngine.methods.debts(entry.debtId).call();
 
     return {
-      entryId: elementId,
-      owner: owner,
+      entryId: entryId,
       debtId: entry.debtId,
-      oracle: entry.oracle,
-      token: bn(entry.token),
-      liquidationRatio: bn(entry.liquidationRatio),
-      balanceRatio: bn(entry.balanceRatio),
-      sender: utils.address0x,
-      debt: {
-        model: debt.model,
-        oracle: debt.oracle,
-      },
+      debtOracle: debt.oracle,
     };
   }
 
-  async canSendTx (localElement) {
-    return await this.isAlive(localElement) &&
-      (await this.isInLiquidation(localElement) || await this.isExpired(localElement));
+  async canSendTx (localEntry) {
+    const entryId = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
+
+    if (entryId === '0')
+      return false;
+
+    const debtOracleData = await getOracleData(localEntry.debtOracle);
+
+    const canClaim = await process.contracts.collateral.methods.canClaim(
+      localEntry.debtId,
+      debtOracleData
+    ).call();
+
+    return canClaim;
   }
 
-  async getTx (localElement) {
-    return process.contracts.collateral.methods.claim(
-      utils.address0x,
-      localElement.debtId,
-      '0x'
+  async sendTx (localEntry) {
+    const debtOracleData = await getOracleData(localEntry.debtOracle);
+
+    const tx = await process.walletManager.sendTx(
+      process.contracts.collateral.methods.claim(
+        address0x,
+        localEntry.debtId,
+        debtOracleData
+      )
     );
+
+    if (tx instanceof Error)
+      console.log('#Claimer/sendTx/Entry on Error:', localEntry.entryId);
   }
 
   async isAlive (localEntry) {
@@ -56,39 +66,7 @@ module.exports = class Claimer extends Bot {
     if (!entry) // If the entry was deleted
       return false;
 
-    const debtToEntry = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
-    const isCosigned = utils.bytes32(debtToEntry) !== utils.bytes320x;
-
     const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
-    const isPaid = bn(debtStatus).eq(bn(2)); // 2: paid debt status
-    const isInAuction = await process.contracts.collateral.methods.inAuction(localEntry.entryId).call();
-
-    return isCosigned && !isPaid && !isInAuction;
-  }
-
-  async isExpired (localEntry) {
-    process.contracts.model.options.address = localEntry.debt.model;
-    const dueTime = await process.contracts.model.methods.getDueTime(localEntry.entryId).call();
-
-    const lastBlock = await utils.getLastBlock();
-    const now = lastBlock.timestamp;
-
-    return now > dueTime;
-  }
-
-  async isInLiquidation (localEntry) {
-    const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
-    const entryAmountInTokens = await utilsOracle.toBaseToken(localEntry.oracle, bn(entry.amount));
-    const obligationInToken = await this.obligationInToken(localEntry);
-    const ratio = bn(entryAmountInTokens).div(bn(obligationInToken));
-
-    return ratio.lt(localEntry.liquidationRatio);
-  }
-
-  async obligationInToken (localEntry) {
-    process.contracts.model._address = localEntry.debt.model;
-    const obligation = bn(await process.contracts.model.methods.getClosingObligation(localEntry.debtId).call());
-
-    return utilsOracle.toBaseToken(localEntry.oracle, obligation);
+    return debtStatus !== PAID_DEBT_STATUS;
   }
 };
