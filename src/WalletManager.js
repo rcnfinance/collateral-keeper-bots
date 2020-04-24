@@ -25,9 +25,9 @@ module.exports = class WalletManager {
   }
 
   async pop() {
-    while (!this.addresses.length) {
+    if (!this.addresses.length) {
       console.log('##Wallet Manager/Wait for an available wallet');
-      await sleep(20000);
+      return;
     }
 
     // TODO: whats happends if the wallet dont have eth balance?
@@ -40,10 +40,14 @@ module.exports = class WalletManager {
   }
 
   async sendTx(func, objTx = { address: undefined, value: undefined, gasPrice: undefined, }) {
-    if (!objTx.address)
+    if (!objTx.address) {
       objTx.address = await this.pop();
-    else
+      if (!objTx.address) {
+        return;
+      }
+    } else {
       this.addresses.filter(x => x != objTx.address);
+    }
 
     objTx.value = objTx.value ? objTx.value : 0;
 
@@ -93,8 +97,8 @@ module.exports = class WalletManager {
     } catch (error) {
       console.log(
         '##Wallet Manager/Error on estimateGas:\n' +
-        func._method.name + '(' + func.arguments + ')' + '\n' +
-        error);
+        '\t' + func._method.name + '(' + func.arguments + ')' + '\n' +
+        '\t' + error);
       return error;
     }
     return bn(gas).mul(bn(12000)).div(bn(10000));

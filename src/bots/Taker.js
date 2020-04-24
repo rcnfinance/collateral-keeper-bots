@@ -1,5 +1,5 @@
 const Bot = require('./Bot.js');
-const { getOracleData, bn } = require('../utils.js');
+const { getOracleData } = require('../utils.js');
 
 module.exports = class Taker extends Bot {
   elementsAliveLog () {
@@ -36,7 +36,7 @@ module.exports = class Taker extends Bot {
   async canSendTx (localAuction) {
     const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
 
-    return !(auction.startTime == 0);
+    return auction.startTime !== '0';
   }
 
   async sendTx (localAuction) {
