@@ -1,4 +1,4 @@
-const { bn, sleep } = require('./utils.js');
+const { bn } = require('./utils.js');
 
 module.exports = class WalletManager {
   constructor(pks) {
@@ -24,7 +24,7 @@ module.exports = class WalletManager {
     }
   }
 
-  async pop() {
+  pop() {
     if (!this.addresses.length) {
       console.log('##Wallet Manager/Wait for an available wallet');
       return;
@@ -41,7 +41,7 @@ module.exports = class WalletManager {
 
   async sendTx(func, objTx = { address: undefined, value: undefined, gasPrice: undefined, }) {
     if (!objTx.address) {
-      objTx.address = await this.pop();
+      objTx.address = this.pop();
       if (!objTx.address) {
         return;
       }
@@ -63,17 +63,20 @@ module.exports = class WalletManager {
     let txHash;
 
     try {
-      console.log('##Wallet Manager/Send:' + func._method.name + '(' + func.arguments + ')');
+      console.log('##Wallet Manager/' + objTx.address + '/Send:\n' +
+      '\t' + func._method.name + '(' + func.arguments + ')');
       txHash = await func.send({
         from: objTx.address,
         gasPrice: objTx.gasPrice,
         gas: gas,
         value: objTx.value,
       });
+      console.log('##Wallet Manager/' + objTx.address + '/Complete:\n' +
+      '\t' + func._method.name + '(' + func.arguments + ')');
     } catch (error) {
       console.log(
-        '##Wallet Manager/Error on sendTx:\n' +
-        '\t' + func._method.name + '(' + func.arguments + ')' + '\n' +
+        '##Wallet Manager/' + objTx.address + '/Error on sendTx:\n' +
+        '\t' + func._method.name + '(' + func.arguments + ')\n' +
         '\t' + error);
       txHash = error;
     }
@@ -96,8 +99,8 @@ module.exports = class WalletManager {
       });
     } catch (error) {
       console.log(
-        '##Wallet Manager/Error on estimateGas:\n' +
-        '\t' + func._method.name + '(' + func.arguments + ')' + '\n' +
+        '##Wallet Manager/' + objTx.address + '/Error on estimateGas:\n' +
+        '\t' + func._method.name + '(' + func.arguments + ')\n' +
         '\t' + error);
       return error;
     }

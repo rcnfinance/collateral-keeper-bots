@@ -24,12 +24,26 @@ module.exports = async () => {
     debtEngineAddress
   );
 
+  const baseTokenAddress = await contracts.debtEngine.methods.token().call();
+
+  contracts.baseToken = await new process.web3.eth.Contract(
+    require('./abis/erc20Abi.json'),
+    baseTokenAddress
+  );
+
+  contracts.uniswapOracle = await new process.web3.eth.Contract(
+    require('./abis/uniswapOracleABI.json'),
+    '0x01a65a0f19eC127D0DB1Bb83aBcA2B8B0Bef2669'
+  );
+
   contracts.model = await new process.web3.eth.Contract(
     require('./abis/ModelAbi.json'),
     '0x41e9D0B6a8Ce88989c2e7b3CaE42ECFAc44c9603'
   );
 
   contracts.rateOracle = await new process.web3.eth.Contract(require('./abis/RateOracleAbi.json'));
+
+  contracts.erc20 = await new process.web3.eth.Contract(require('./abis/erc20Abi.json'));
 
   return contracts;
 };

@@ -30,9 +30,13 @@ module.exports = class Claimer extends Bot {
   }
 
   async canSendTx (localEntry) {
+    // TODO the tx is in the mempool of the vm???
     const entryId = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
-
     if (entryId === '0')
+      return false;
+
+    const entry = await process.contracts.collateral.methods.entries(entryId).call();
+    if (entry.amount === '0')
       return false;
 
     const debtOracleData = await getOracleData(localEntry.debtOracle);
@@ -62,6 +66,10 @@ module.exports = class Claimer extends Bot {
 
   async isAlive (localEntry) {
     const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
+
+    const debtToEntry = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
+    if (debtToEntry == 0 || debtToEntry == localEntry.entryId)
+      return false;
 
     if (!entry) // If the entry was deleted
       return false;

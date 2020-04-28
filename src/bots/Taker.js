@@ -71,7 +71,7 @@ module.exports = class Taker extends Bot {
 /*
   async approveAuction() {
     for (let i = 0; i < process.walletManager.addresses.length; i++) {
-      const address = await process.walletManager.pop();
+      const address = process.walletManager.pop();
       const baseToken = process.contracts.baseToken;
       const auction = process.contracts.auction;
       const allowance = bn(await baseToken.methods.allowance(address, auction._address).call());
