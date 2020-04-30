@@ -6,16 +6,14 @@ module.exports = class Taker extends Bot {
     console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
   }
 
-  addElementLog (auctionId) {
-    console.log('#Taker/Add Auction:', auctionId);
-  }
-
-  removeElementLog (auctionId) {
-    console.log('#Taker/Remove Auction:', auctionId);
-  }
-
   async elementsLength () {
-    return process.contracts.auction.methods.getAuctionsLength().call();
+    try {
+      return process.contracts.auction.methods.getAuctionsLength().call();
+    } catch (error) {
+      // TODO: SEnd to sentry?
+      console.log(error);
+      return '0';
+    }
   }
 
   async createElement (auctionId) {
@@ -34,9 +32,15 @@ module.exports = class Taker extends Bot {
   }
 
   async canSendTx (localAuction) {
-    const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
+    try {
+      const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
 
-    return auction.startTime !== '0';
+      return auction.startTime !== '0';
+    } catch (error) {
+      // TODO: SEnd to sentry?
+      console.log(error);
+      return false;
+    }
   }
 
   async sendTx (localAuction) {
@@ -57,15 +61,21 @@ module.exports = class Taker extends Bot {
   }
 
   async isAlive (localAuction) {
-    if (localAuction.inError)
-      return false;
+    try {
+      if (localAuction.inError)
+        return false;
 
-    const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
+      const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
 
-    if (auction)
-      return auction.startTime != 0;
-    else
+      if (auction)
+        return auction.startTime != 0;
+      else
+        return false;
+    } catch (error) {
+      // TODO: SEnd to sentry?
+      console.log(error);
       return false;
+    }
   }
 };
 /*

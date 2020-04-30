@@ -22,19 +22,21 @@ module.exports = class Bot {
   }
 
   async processElement(elementId) {
-    const element = await this.createElement(bytes32(elementId));
-
     this.totalAliveElement++;
-    //this.addElementLog(elementId);
 
-    while (await this.isAlive(element)) {
-      if (await this.canSendTx(element))
-        await this.sendTx(element);
+    try {
+      const element = await this.createElement(bytes32(elementId));
 
-      await sleep(5000);
+      while (await this.isAlive(element)) {
+        if (await this.canSendTx(element))
+          await this.sendTx(element);
+
+        await sleep(5000);
+      }
+    } catch (error) {
+      console.log(error);
     }
 
     this.totalAliveElement--;
-    //this.removeElementLog(elementId);
   }
 };
