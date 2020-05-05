@@ -34,7 +34,7 @@ module.exports = class Bot {
         await sleep(5000);
       }
     } catch (error) {
-      console.log(error);
+      console.log('#Bot/processElement/Error:\n', error.message);
     }
 
     this.totalAliveElement--;

@@ -51,18 +51,18 @@ module.exports = class WalletManager {
 
     objTx.value = objTx.value ? objTx.value : 0;
 
-    const gas = await this.estimateGas(func, objTx);
-    if (gas instanceof Error) {
-      this.push(objTx.address);
-      return gas;
-    }
-
-    if (!objTx.gasPrice)
-      objTx.gasPrice = await process.web3.eth.getGasPrice();
-
     let txHash;
 
     try {
+      const gas = await this.estimateGas(func, objTx);
+      if (gas instanceof Error) {
+        this.push(objTx.address);
+        return gas;
+      }
+
+      if (!objTx.gasPrice)
+        objTx.gasPrice = await process.web3.eth.getGasPrice();
+
       console.log('##Wallet Manager/' + objTx.address + '/Send:\n' +
       '\t' + func._method.name + '(' + func.arguments + ')');
       txHash = await func.send({
@@ -87,16 +87,14 @@ module.exports = class WalletManager {
   }
 
   async estimateGas(func, objTx) {
-    let gas;
-
     try {
-      const gasLimit = (await process.web3.eth.getBlock('latest')).gasLimit;
-
-      gas = await func.estimateGas({
+      const gas = await func.estimateGas({
         from: objTx.address,
-        gas: gasLimit,
+        gas: (await process.web3.eth.getBlock('latest')).gasLimit,
         value: objTx.value,
       });
+
+      return bn(gas).mul(bn(12000)).div(bn(10000));
     } catch (error) {
       console.log(
         '##Wallet Manager/' + objTx.address + '/Error on estimateGas:\n' +
@@ -104,6 +102,5 @@ module.exports = class WalletManager {
         '\t' + error);
       return error;
     }
-    return bn(gas).mul(bn(12000)).div(bn(10000));
   }
 };

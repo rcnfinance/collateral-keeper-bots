@@ -8,10 +8,9 @@ module.exports = class Taker extends Bot {
 
   async elementsLength () {
     try {
-      return process.contracts.auction.methods.getAuctionsLength().call();
+      return await process.contracts.auction.methods.getAuctionsLength().call();
     } catch (error) {
-      // TODO: SEnd to sentry?
-      console.log(error);
+      console.log('#Taker/elementsLength/Error:\n', error.message);
       return '0';
     }
   }
@@ -37,8 +36,7 @@ module.exports = class Taker extends Bot {
 
       return auction.startTime !== '0';
     } catch (error) {
-      // TODO: SEnd to sentry?
-      console.log(error);
+      console.log('#Taker/canSendTx/Error:\n', error.message);
       return false;
     }
   }
@@ -72,31 +70,8 @@ module.exports = class Taker extends Bot {
       else
         return false;
     } catch (error) {
-      // TODO: SEnd to sentry?
-      console.log(error);
+      console.log('#Taker/isAlive/Error:\n', error.message);
       return false;
     }
   }
 };
-/*
-  async approveAuction() {
-    for (let i = 0; i < process.walletManager.addresses.length; i++) {
-      const address = process.walletManager.pop();
-      const baseToken = process.contracts.baseToken;
-      const auction = process.contracts.auction;
-      const allowance = bn(await baseToken.methods.allowance(address, auction._address).call());
-
-      if (allowance.isZero()) {
-        const approveFunction = baseToken.methods.approve(
-          auction._address,
-          process.w3.utils.toTwosComplement(-1)
-        );
-
-        process.walletManager.sendTx(approveFunction, { address: address });
-      }
-
-      process.walletManager.push(address);
-    }
-  }
-};
-*/

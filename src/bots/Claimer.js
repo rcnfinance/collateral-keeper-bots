@@ -8,23 +8,27 @@ module.exports = class Claimer extends Bot {
 
   async elementsLength () {
     try {
-      return process.contracts.collateral.methods.getEntriesLength().call();
+      return await process.contracts.collateral.methods.getEntriesLength().call();
     } catch (error) {
-      // TODO: SEnd to sentry?
-      console.log(error);
+      console.log('#Claimer/elementsLength/Error:\n', error.message);
       return '0';
     }
   }
 
   async createElement (entryId) {
-    const debtId = (await process.contracts.collateral.methods.entries(entryId).call()).debtId;
-    const oracle = (await process.contracts.debtEngine.methods.debts(debtId).call()).oracle;
+    try {
+      const debtId = (await process.contracts.collateral.methods.entries(entryId).call()).debtId;
+      const oracle = (await process.contracts.debtEngine.methods.debts(debtId).call()).oracle;
 
-    return {
-      entryId,
-      debtId,
-      oracle,
-    };
+      return {
+        entryId,
+        debtId,
+        oracle,
+      };
+    } catch (error) {
+      console.log('#Claimer/createElement/Error:\n', error.message);
+      return false;
+    }
   }
 
   async canSendTx (localEntry) {
@@ -38,8 +42,7 @@ module.exports = class Claimer extends Bot {
         await getOracleData(localEntry.debtOracle)
       );
     } catch (error) {
-      // TODO: SEnd to sentry?
-      console.log(error);
+      console.log('#Claimer/canSendTx/Error:\n', error.message);
       return false;
     }
   }
@@ -72,8 +75,7 @@ module.exports = class Claimer extends Bot {
       const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
       return debtStatus !== PAID_DEBT_STATUS;
     } catch (error) {
-      // TODO: SEnd to sentry?
-      console.log(error);
+      console.log('#Claimer/isAlive/Error:\n', error.message);
       return false;
     }
   }

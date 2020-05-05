@@ -15,16 +15,15 @@ module.exports.bytes32 = (number) => {
 };
 
 module.exports.getOracleData = async (oracle) => {
-  let oracleUrl;
   try {
     process.contracts.rateOracle._address = oracle;
-    oracleUrl = await process.contracts.rateOracle.methods.url().call();
+    const oracleUrl = await process.contracts.rateOracle.methods.url().call();
+
+    if (oracleUrl === null) // If dont have URL, the oracle data its empty
+      return '0x';
+
+    throw new Error('TODO: get oracle data from url and return the oracle data');
   } catch (error) {
-    oracleUrl = null;
+    console.log('#Utils/getOracleData/Error:\n', error.message);
   }
-
-  if (oracleUrl === null) // If dont have URL, the oracle data its empty
-    return '0x';
-
-  throw new Error('TODO: get oracle data from url and return the oracle data');
 };
