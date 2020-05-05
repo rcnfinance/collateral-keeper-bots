@@ -37,10 +37,10 @@ module.exports = class Claimer extends Bot {
       if (entry.amount === '0')
         return false;
 
-      return process.contracts.collateral.methods.canClaim(
+      return await process.contracts.collateral.methods.canClaim(
         localEntry.debtId,
         await getOracleData(localEntry.debtOracle)
-      );
+      ).call();
     } catch (error) {
       console.log('#Claimer/canSendTx/Error:\n', error.message);
       return false;
