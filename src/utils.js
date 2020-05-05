@@ -19,10 +19,10 @@ module.exports.getOracleData = async (oracle) => {
     process.contracts.rateOracle._address = oracle;
     const oracleUrl = await process.contracts.rateOracle.methods.url().call();
 
-    if (oracleUrl === null) // If dont have URL, the oracle data its empty
+    if (!oracleUrl) // If dont have URL, the oracle data its empty
       return '0x';
 
-    throw new Error('TODO: get oracle data from url and return the oracle data');
+    throw new Error('TODO: get oracle data from url and return the oracle data:', oracleUrl);
   } catch (error) {
     console.log('#Utils/getOracleData/Error:\n', error.message);
   }

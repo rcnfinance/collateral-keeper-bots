@@ -18,12 +18,12 @@ module.exports = class Claimer extends Bot {
   async createElement (entryId) {
     try {
       const debtId = (await process.contracts.collateral.methods.entries(entryId).call()).debtId;
-      const oracle = (await process.contracts.debtEngine.methods.debts(debtId).call()).oracle;
+      const debtOracle = (await process.contracts.debtEngine.methods.debts(debtId).call()).oracle;
 
       return {
         entryId,
         debtId,
-        oracle,
+        debtOracle,
       };
     } catch (error) {
       console.log('#Claimer/createElement/Error:\n', error.message);

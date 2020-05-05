@@ -20,12 +20,12 @@ module.exports = class Taker extends Bot {
 
     const entryId = await process.contracts.collateral.methods.auctionToEntry(auctionId).call();
     const entry = await process.contracts.collateral.methods.entries(entryId).call();
-    const debt = (await process.contracts.debtEngine.methods.debts(entry.debtId).call());
+    const debtOracle = (await process.contracts.debtEngine.methods.debts(entry.debtId).call()).oracle;
 
     const baseToken = await process.contracts.collateral.methods.loanManagerToken().call();
 
     return {
-      debtOracle: debt.oracle,
+      debtOracle,
       id: auction.fromToken == baseToken ? 0 : auctionId,
     };
   }
