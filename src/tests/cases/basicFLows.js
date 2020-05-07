@@ -20,7 +20,7 @@ async function main() {
   await testHelper.approveContracts();
 
   //await flow1();
-  //await flow2();
+  await flow2();
   //await flow3();
   //await flow4();
   //await flow5();

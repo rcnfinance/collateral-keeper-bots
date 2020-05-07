@@ -10,7 +10,7 @@ module.exports = class Claimer extends Bot {
     try {
       return await process.contracts.collateral.methods.getEntriesLength().call();
     } catch (error) {
-      console.log('#Claimer/elementsLength/Error:\n', error.message);
+      console.log('#Claimer/elementsLength/Error:\n', error);
       return '0';
     }
   }
@@ -26,7 +26,7 @@ module.exports = class Claimer extends Bot {
         debtOracle,
       };
     } catch (error) {
-      console.log('#Claimer/createElement/Error:\n', error.message);
+      console.log('#Claimer/createElement/Error:\n', error);
       return false;
     }
   }
@@ -42,7 +42,7 @@ module.exports = class Claimer extends Bot {
         await getOracleData(localEntry.debtOracle)
       ).call();
     } catch (error) {
-      console.log('#Claimer/canSendTx/Error:\n', error.message);
+      console.log('#Claimer/canSendTx/Error:\n', error);
       return false;
     }
   }
@@ -75,7 +75,7 @@ module.exports = class Claimer extends Bot {
       const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
       return debtStatus !== PAID_DEBT_STATUS;
     } catch (error) {
-      console.log('#Claimer/isAlive/Error:\n', error.message);
+      console.log('#Claimer/isAlive/Error:\n', error);
       return false;
     }
   }

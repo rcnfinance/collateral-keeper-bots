@@ -10,7 +10,7 @@ module.exports = class Taker extends Bot {
     try {
       return await process.contracts.auction.methods.getAuctionsLength().call();
     } catch (error) {
-      console.log('#Taker/elementsLength/Error:\n', error.message);
+      console.log('#Taker/elementsLength/Error:\n', error);
       return '0';
     }
   }
@@ -36,7 +36,7 @@ module.exports = class Taker extends Bot {
 
       return auction.startTime !== '0';
     } catch (error) {
-      console.log('#Taker/canSendTx/Error:\n', error.message);
+      console.log('#Taker/canSendTx/Error:\n', error);
       return false;
     }
   }
@@ -70,7 +70,7 @@ module.exports = class Taker extends Bot {
       else
         return false;
     } catch (error) {
-      console.log('#Taker/isAlive/Error:\n', error.message);
+      console.log('#Taker/isAlive/Error:\n', error);
       return false;
     }
   }

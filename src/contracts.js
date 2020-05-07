@@ -32,7 +32,7 @@ module.exports = async () => {
       baseTokenAddress
     );
   } catch (error) {
-    console.log('Init contratcs Error:\n', error.message);
+    console.log('Init contratcs Error:\n', error);
     throw new Error(error);
   }
 
