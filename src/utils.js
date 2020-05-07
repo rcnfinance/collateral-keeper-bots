@@ -15,6 +15,9 @@ module.exports.bytes32 = (number) => {
 };
 
 module.exports.getOracleData = async (oracle) => {
+  if (oracle === this.address0x)
+    return '0x';
+
   try {
     process.contracts.rateOracle._address = oracle;
     const oracleUrl = await process.contracts.rateOracle.methods.url().call();
