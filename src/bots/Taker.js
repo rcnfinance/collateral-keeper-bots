@@ -16,18 +16,23 @@ module.exports = class Taker extends Bot {
   }
 
   async createElement (auctionId) {
-    const auction = await process.contracts.auction.methods.auctions(auctionId).call();
+    try {
+      const auction = await process.contracts.auction.methods.auctions(auctionId).call();
 
-    const entryId = await process.contracts.collateral.methods.auctionToEntry(auctionId).call();
-    const entry = await process.contracts.collateral.methods.entries(entryId).call();
-    const debtOracle = (await process.contracts.debtEngine.methods.debts(entry.debtId).call()).oracle;
+      const entryId = await process.contracts.collateral.methods.auctionToEntry(auctionId).call();
+      const entry = await process.contracts.collateral.methods.entries(entryId).call();
+      const debtOracle = (await process.contracts.debtEngine.methods.debts(entry.debtId).call()).oracle;
 
-    const baseToken = await process.contracts.collateral.methods.loanManagerToken().call();
+      const baseToken = await process.contracts.collateral.methods.loanManagerToken().call();
 
-    return {
-      debtOracle,
-      id: auction.fromToken == baseToken ? 0 : auctionId,
-    };
+      return {
+        debtOracle,
+        id: auction.fromToken == baseToken ? 0 : auctionId,
+      };
+    } catch (error) {
+      console.log('#Taker/createElement/Error:', auctionId, '\n', error);
+      return false;
+    }
   }
 
   async canSendTx (localAuction) {
@@ -36,7 +41,7 @@ module.exports = class Taker extends Bot {
 
       return auction.startTime !== '0';
     } catch (error) {
-      console.log('#Taker/canSendTx/Error:\n', error);
+      console.log('#Taker/canSendTx/Error:', localAuction.id, '\n', error);
       return false;
     }
   }
@@ -53,16 +58,16 @@ module.exports = class Taker extends Bot {
     );
 
     if (tx instanceof Error) {
-      console.log('#Taker/sendTx/Auction on Error:', localAuction.id);
+      console.log('#Taker/sendTx/Auction on Error:', localAuction.id, '\n', tx);
       localAuction.inError = true;
     }
   }
 
   async isAlive (localAuction) {
-    try {
-      if (localAuction.inError)
-        return false;
+    if (localAuction.inError)
+      return false;
 
+    try {
       const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
 
       if (auction)
@@ -70,7 +75,7 @@ module.exports = class Taker extends Bot {
       else
         return false;
     } catch (error) {
-      console.log('#Taker/isAlive/Error:\n', error);
+      console.log('#Taker/isAlive/Error:', localAuction.id, '\n', error);
       return false;
     }
   }

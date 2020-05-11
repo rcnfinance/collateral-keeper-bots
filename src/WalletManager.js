@@ -64,7 +64,7 @@ module.exports = class WalletManager {
         objTx.gasPrice = await process.web3.eth.getGasPrice();
 
       console.log('##Wallet Manager/' + objTx.address + '/Send:\n' +
-      '\t' + func._method.name + '(' + func.arguments + ')');
+        '\t' + func._method.name + '(' + func.arguments + ')');
       txHash = await func.send({
         from: objTx.address,
         gasPrice: objTx.gasPrice,
@@ -72,7 +72,7 @@ module.exports = class WalletManager {
         value: objTx.value,
       });
       console.log('##Wallet Manager/' + objTx.address + '/Complete:\n' +
-      '\t' + func._method.name + '(' + func.arguments + ')');
+        '\t' + func._method.name + '(' + func.arguments + ')');
     } catch (error) {
       console.log(
         '##Wallet Manager/' + objTx.address + '/Error on sendTx:\n' +

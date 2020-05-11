@@ -27,6 +27,6 @@ module.exports.getOracleData = async (oracle) => {
 
     throw new Error('TODO: get oracle data from url and return the oracle data:', oracleUrl);
   } catch (error) {
-    console.log('#Utils/getOracleData/Error:\n', error);
+    console.log('#Utils/getOracleData/Error:', oracle, '\n', error);
   }
 };
