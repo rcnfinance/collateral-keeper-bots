@@ -3,6 +3,8 @@ const Web3 = require('web3');
 const WalletManager = require('./WalletManager.js');
 
 module.exports = async () => {
+  console.log('Start Log:', Date().toString());
+
   program
     .option(
       '-p, --pks <addresses>',
