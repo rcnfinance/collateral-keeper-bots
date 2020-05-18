@@ -34,7 +34,9 @@ module.exports = class Claimer extends Bot {
   async canSendTx (localEntry) {
     try {
       const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
-      if (entry.amount === '0')
+      const debtToEntry = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
+
+      if (entry.amount == 0 || debtToEntry == 0)
         return false;
 
       return await process.contracts.collateral.methods.canClaim(
@@ -42,7 +44,7 @@ module.exports = class Claimer extends Bot {
         await getOracleData(localEntry.debtOracle)
       ).call();
     } catch (error) {
-      console.log('#Claimer/canSendTx/Error:', localEntry.id, '\n', error);
+      console.log('#Claimer/canSendTx/Error:', localEntry.entryId, '\n', error);
       return false;
     }
   }
@@ -66,10 +68,6 @@ module.exports = class Claimer extends Bot {
     try {
       const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
       if (!entry) // If the entry was deleted
-        return false;
-
-      const debtToEntry = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
-      if (debtToEntry == 0 || debtToEntry == localEntry.entryId)
         return false;
 
       const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
