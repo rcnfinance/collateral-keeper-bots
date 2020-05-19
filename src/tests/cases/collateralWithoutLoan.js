@@ -3,8 +3,8 @@ const WalletManager = require('../../WalletManager.js');
 const { pks } = require('../testEnv.js');
 
 async function main() {
-  process.env = require('../../../environment.js');
-  process.web3 = new Web3(new Web3.providers.HttpProvider(process.env.node));
+  process.environment = require('../../../environment.js');
+  process.web3 = new Web3(new Web3.providers.HttpProvider(process.environment.node));
   process.contracts = await require('../../contracts.js')();
   process.walletManager = new WalletManager(pks);
 

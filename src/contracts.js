@@ -3,7 +3,7 @@ module.exports = async () => {
 
   contracts.collateral = await new process.web3.eth.Contract(
     require('./abis/collateralAbi.json'),
-    process.env.collateralAddress
+    process.environment.collateralAddress
   );
 
   try {
