@@ -14,9 +14,11 @@ module.exports = class Bot {
           this.processElement(i);
       }
 
-      this.elementsAliveLog();
+      if (elementLength != prevElementLength)
+        this.elementsAliveLog();
 
       await sleep(25000);
+
       prevElementLength = elementLength;
     }
   }

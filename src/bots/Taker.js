@@ -11,7 +11,7 @@ module.exports = class Taker extends Bot {
       return await process.contracts.auction.methods.getAuctionsLength().call();
     } catch (error) {
       console.log('#Taker/elementsLength/Error:\n', error);
-      return '0';
+      return 0;
     }
   }
 

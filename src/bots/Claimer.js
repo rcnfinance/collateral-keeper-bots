@@ -11,7 +11,7 @@ module.exports = class Claimer extends Bot {
       return await process.contracts.collateral.methods.getEntriesLength().call();
     } catch (error) {
       console.log('#Claimer/elementsLength/Error:\n', error);
-      return '0';
+      return 0;
     }
   }
 
