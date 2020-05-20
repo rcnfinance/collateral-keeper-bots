@@ -61,7 +61,7 @@ module.exports = class Claimer extends Bot {
     );
 
     if (tx instanceof Error)
-      console.log('#Claimer/sendTx/Entry on Error:', localEntry.id, '\n', tx);
+      console.log('#Claimer/sendTx/Entry on Error:', localEntry.entryId, '\n', tx);
   }
 
   async isAlive (localEntry) {
@@ -73,7 +73,7 @@ module.exports = class Claimer extends Bot {
       const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
       return debtStatus !== PAID_DEBT_STATUS;
     } catch (error) {
-      console.log('#Claimer/isAlive/Error:', localEntry.id, '\n', error);
+      console.log('#Claimer/isAlive/Error:', localEntry.entryId, '\n', error);
       return false;
     }
   }
