@@ -72,12 +72,14 @@ module.exports = class WalletManager {
         value: objTx.value,
       });
       console.log('##Wallet Manager/' + objTx.address + '/Complete:\n' +
-        '\t' + func._method.name + '(' + func.arguments + ')');
+        '\t' + func._method.name + '(' + func.arguments + ')\n' +
+        '\ttxHash = ' + txHash);
     } catch (error) {
       console.log(
         '##Wallet Manager/' + objTx.address + '/Error on sendTx:\n' +
         '\t' + func._method.name + '(' + func.arguments + ')\n' +
-        '\t' + error);
+        '\t' + error + '\n' +
+        '\ttxHash = ' + txHash);
       txHash = error;
     }
 
