@@ -16,4 +16,4 @@ WORKDIR /usr/src/app
 
 COPY --from=BUILD_IMAGE /usr/src/app/ ./
 
-CMD [ "node", "index.js" ]
+ENTRYPOINT [ "node", "index.js" ]
