@@ -2,30 +2,47 @@ const program = require('commander');
 const Web3 = require('web3');
 const WalletManager = require('./WalletManager.js');
 
+function splitAddresses(addresses) {
+  return addresses.split(',');
+}
+
 module.exports = async () => {
   console.log('Start Log:', Date().toString());
 
   program
     .option(
-      '-p, --pks <addresses>',
+      '-p, --pks [addresses]',
       'A private key',
-      (addresses) => addresses.split(',')
+      process.env.BOT_PKS
     )
     .option(
       '-c, --claim',
-      'Execute Claim bot',
+      'Execute Claim bot'
     )
     .option(
       '-t, --take',
-      'Execute Take bot',
+      'Execute Take bot'
+    )
+    .option(
+      '-n, --node <url>',
+      'URL Node Ethereum',
+      process.env.URL_NODE_ETHEREUM
+    )
+    .option(
+      '-c, --collateralAddress <address>',
+      'Collateral address',
+      process.env.COLLATERAL_ADDRESS
     )
     .parse(process.argv);
 
-  process.environment = require('../environment.js');
+
+  process.environment = program.opts()
+  // fix process pks split
+  process.environment.pks = splitAddresses(process.environment.pks)
   process.web3 = new Web3(new Web3.providers.HttpProvider(process.environment.node));
   process.contracts = await require('./contracts.js')();
-  process.walletManager = new WalletManager(program.pks);
+  process.walletManager = new WalletManager(process.environment.pks);
 
-  process.takeOn = program.take;
-  process.claimOn = program.claim;
+  process.takeOn = process.environment.take;
+  process.claimOn = process.environment.claim;
 };
