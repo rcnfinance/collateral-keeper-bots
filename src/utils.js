@@ -30,3 +30,21 @@ module.exports.getOracleData = async (oracle) => {
     console.log('#Utils/getOracleData/Error:', oracle, '\n', error);
   }
 };
+
+module.exports.getBlock = async (number = 'latest') => {
+  try {
+    return await process.web3.eth.getBlock(number);
+  } catch (error) {
+    console.log('#Utils/getBLock/Error', '\n', error);
+  }
+};
+
+module.exports.waitNewBlock = async (lastCheckBlock) => {
+  let lastBlock = await this.getBlock();
+
+  for (; lastCheckBlock.number == lastBlock.number; lastBlock = await this.getBlock()) {
+    await this.sleep(1000);
+  }
+
+  return lastBlock;
+};

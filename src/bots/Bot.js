@@ -1,4 +1,5 @@
-const { sleep, bytes32 } = require('../utils.js');
+const { sleep, bytes32, getBlock, waitNewBlock } = require('../utils.js');
+const api = require('../api.js');
 
 module.exports = class Bot {
   constructor() {
@@ -6,6 +7,8 @@ module.exports = class Bot {
   }
 
   async process () {
+    this.lastProcessBlock = await getBlock();
+
     for (let prevElementLength = 1;;) {
       const elementLength = await this.elementsLength();
 
@@ -17,7 +20,11 @@ module.exports = class Bot {
       if (elementLength != prevElementLength)
         this.elementsAliveLog();
 
-      await sleep(25000);
+      api.report('Last Process Block', this.lastProcessBlock);
+
+      this.lastProcessBlock = await waitNewBlock(this.lastProcessBlock);
+
+      await sleep(5000);
 
       prevElementLength = elementLength;
     }
@@ -26,19 +33,59 @@ module.exports = class Bot {
   async processElement(elementId) {
     this.totalAliveElement++;
 
+    let element;
+    let alive;
     try {
-      const element = await this.createElement(bytes32(elementId));
+      element = await this.createElement(bytes32(elementId));
+      api.report('New Element', element);
 
-      while (await this.isAlive(element)) {
+      for (alive = await this.isAlive(element); alive; alive = await this.isAlive(element)) {
         if (await this.canSendTx(element))
           await this.sendTx(element);
 
-        await sleep(5000);
+        for ( // Wait for new block
+          let lastElementProcessBlock = this.lastProcessBlock;
+          lastElementProcessBlock.number == this.lastProcessBlock.number;
+          await sleep(1000)
+        );
       }
     } catch (error) {
-      console.log('#Bot/processElement/Error:\n', error);
+      await api.reportError('#Bot/processElement/Error', elementId, error);
     }
 
+    if (element)
+      api.report('End Element', { element, reason: alive });
+    else
+      api.report('End Element on Error', { elementId, reason: alive });
+
     this.totalAliveElement--;
+  }
+
+  // Abstract functions
+
+  async elementsLength(){
+    throw new Error('Not implement: elementsLength');
+  }
+
+  async createElement(elementId){
+    throw new Error('Not implement: createElement');
+  }
+
+  async isAlive(element){
+    throw new Error('Not implement: isAlive');
+  }
+
+  async canSendTx(element){
+    throw new Error('Not implement: canSendTx');
+  }
+
+  async sendTx(element){
+    throw new Error('Not implement: sendTx');
+  }
+
+  // Log Abstract functions
+
+  async elementsAliveLog(){
+    throw new Error('Not implement: elementsAliveLog');
   }
 };

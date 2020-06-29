@@ -1,4 +1,4 @@
-const { bn } = require('./utils.js');
+const { bn, sleep } = require('./utils.js');
 
 module.exports = class WalletManager {
   constructor(pks) {
@@ -42,8 +42,10 @@ module.exports = class WalletManager {
   async sendTx(func, objTx = { address: undefined, value: undefined, gasPrice: undefined, }) {
     if (!objTx.address) {
       objTx.address = this.pop();
-      if (!objTx.address) {
-        return;
+
+      while (!objTx.address) {
+        await sleep(5000);
+        objTx.address = this.pop();
       }
     } else {
       this.addresses.filter(x => x != objTx.address);
