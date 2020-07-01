@@ -1,11 +1,8 @@
 const Bot = require('./Bot.js');
-const { getOracleData } = require('../utils.js');
+const api = require('../api.js');
+const { getOracleData, bytes320x } = require('../utils.js');
 
 module.exports = class Taker extends Bot {
-  elementsAliveLog () {
-    console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
-  }
-
   async elementsLength () {
     try {
       return await process.contracts.auction.methods.getAuctionsLength().call();
@@ -27,56 +24,56 @@ module.exports = class Taker extends Bot {
 
       return {
         debtOracle,
-        id: auction.fromToken == baseToken ? 0 : auctionId,
+        id: auction.fromToken == baseToken ? bytes320x : auctionId,
       };
     } catch (error) {
-      console.log('#Taker/createElement/Error:', auctionId, '\n', error);
+      api.reportError('#Taker/createElement/Error', auctionId, error);
       return false;
     }
   }
 
-  async canSendTx (localAuction) {
+  async isAlive (auction) {
     try {
-      const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
+      auction.auctionOnChain = await process.contracts.auction.methods.auctions(auction.id).call();
 
-      return auction.startTime !== '0';
+      if (auction && auction.auctionOnChain.amount != '0')
+        return { alive: true};
+      else
+        return { alive: false, reason: 'The auction was bougth or not exists' };
     } catch (error) {
-      console.log('#Taker/canSendTx/Error:', localAuction.id, '\n', error);
+      api.reportError('#Taker/isAlive/Error', auction, error);
+      return { alive: false, reason: 'The isAlive function have an error' };
+    }
+  }
+
+  async canSendTx (auction) {
+    try {
+      // When take an auction?
+      return true;
+    } catch (error) {
+      api.reportError('#Taker/canSendTx/Error', auction, error);
       return false;
     }
   }
 
-  async sendTx (localAuction) {
-    const debtOracleData = await getOracleData(localAuction.debtOracle);
+  async sendTx (auction) {
+    const debtOracleData = await getOracleData(auction.debtOracle);
 
     const tx = await process.walletManager.sendTx(
       process.contracts.auction.methods.take(
-        localAuction.id, // Auction id, in uint256
-        debtOracleData,  // Oracle data of the debt
-        false            // If the auction contract, call the "onTake(uint256,uint256)" function
+        auction.id,     // Auction id, in uint256
+        debtOracleData, // Oracle data of the debt
+        false           // If the auction contract, call the "onTake(uint256,uint256)" function
       )
     );
 
     if (tx instanceof Error) {
-      console.log('#Taker/sendTx/Auction on Error:', localAuction.id, '\n', tx);
-      localAuction.inError = true;
+      api.reportError('#Taker/sendTx/Auction on Error', auction, tx);
+      auction.inError = true;
     }
   }
 
-  async isAlive (localAuction) {
-    if (localAuction.inError)
-      return false;
-
-    try {
-      const auction = await process.contracts.auction.methods.auctions(localAuction.id).call();
-
-      if (auction)
-        return auction.startTime != 0;
-      else
-        return false;
-    } catch (error) {
-      console.log('#Taker/isAlive/Error:', localAuction.id, '\n', error);
-      return false;
-    }
+  elementsAliveLog () {
+    console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
   }
 };

@@ -23,7 +23,7 @@ module.exports = class Claimer extends Bot {
         debtOracle,
       };
     } catch (error) {
-      api.reportError('#Claimer/createElement/Error:', entryId, error);
+      api.reportError('#Claimer/createElement/Error', entryId, error);
       return false;
     }
   }
@@ -36,12 +36,12 @@ module.exports = class Claimer extends Bot {
 
       const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
       if (debtStatus !== PAID_DEBT_STATUS)
-        return true;
+        return { alive: true };
       else
-        return 'The debt of the entry was paid';
+        return { alive: false, reason: 'The debt of the entry was paid' };
     } catch (error) {
-      api.reportError('#Claimer/isAlive/Error:', localEntry, error);
-      return 'The isAlive function have an error';
+      api.reportError('#Claimer/isAlive/Error', localEntry, error);
+      return { alive: false, reason: 'The isAlive function have an error' };
     }
   }
 
@@ -58,7 +58,7 @@ module.exports = class Claimer extends Bot {
         await getOracleData(localEntry.debtOracle)
       ).call();
     } catch (error) {
-      api.reportError('#Claimer/canSendTx/Error:', localEntry, error);
+      api.reportError('#Claimer/canSendTx/Error', localEntry, error);
       return false;
     }
   }

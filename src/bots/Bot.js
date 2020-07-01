@@ -34,12 +34,14 @@ module.exports = class Bot {
     this.totalAliveElement++;
 
     let element;
-    let alive;
+    let resp;
     try {
       element = await this.createElement(bytes32(elementId));
       api.report('New Element', element);
 
-      for (alive = await this.isAlive(element); alive; alive = await this.isAlive(element)) {
+      resp = await this.isAlive(element);
+
+      while (resp.alive) {
         if (await this.canSendTx(element))
           await this.sendTx(element);
 
@@ -48,15 +50,17 @@ module.exports = class Bot {
           lastElementProcessBlock.number == this.lastProcessBlock.number;
           await sleep(1000)
         );
+
+        resp = await this.isAlive(element);
       }
     } catch (error) {
       await api.reportError('#Bot/processElement/Error', elementId, error);
     }
 
     if (element)
-      api.report('End Element', { element, reason: alive });
+      api.report('End Element', { element, reason: resp.reason });
     else
-      api.report('End Element on Error', { elementId, reason: alive });
+      api.report('End Element on Error', { elementId, reason: resp.alive });
 
     this.totalAliveElement--;
   }

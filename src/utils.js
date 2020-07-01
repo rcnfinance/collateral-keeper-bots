@@ -1,6 +1,7 @@
 module.exports.PAID_DEBT_STATUS = '2';
 
 module.exports.address0x = '0x0000000000000000000000000000000000000000';
+module.exports.bytes320x = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 module.exports.sleep = async (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));

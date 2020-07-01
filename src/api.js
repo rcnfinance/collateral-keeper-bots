@@ -1,10 +1,10 @@
 module.exports.report = (message, element) => {
   console.log(message);
-  console.log(element);
+  console.log('\t', element);
 };
 
-module.exports.reportErrorreport = (message, element, error) => {
+module.exports.reportError = (message, element, error) => {
   console.log(message);
-  console.log(element);
-  console.log(error);
+  console.log('\t', element);
+  console.log('\t', error);
 };
