@@ -6,7 +6,7 @@ module.exports = class Bot {
     this.totalAliveElement = 0;
   }
 
-  async process () {
+  async process() {
     this.lastProcessBlock = await getBlock();
 
     for (let prevElementLength = 1;;) {
@@ -65,29 +65,29 @@ module.exports = class Bot {
 
   // Abstract functions
 
-  async elementsLength(){
+  async elementsLength() {
     throw new Error('Not implement: elementsLength');
   }
 
-  async createElement(elementId){
+  async createElement(elementId) {
     throw new Error('Not implement: createElement');
   }
 
-  async isAlive(element){
+  async isAlive(element) {
     throw new Error('Not implement: isAlive');
   }
 
-  async canSendTx(element){
+  async canSendTx(element) {
     throw new Error('Not implement: canSendTx');
   }
 
-  async sendTx(element){
+  async sendTx(element) {
     throw new Error('Not implement: sendTx');
   }
 
   // Log Abstract functions
 
-  async elementsAliveLog(){
+  async elementsAliveLog() {
     throw new Error('Not implement: elementsAliveLog');
   }
 };
