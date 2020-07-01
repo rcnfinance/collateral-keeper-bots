@@ -24,8 +24,6 @@ module.exports = class Bot {
 
       this.lastProcessBlock = await waitNewBlock(this.lastProcessBlock);
 
-      await sleep(5000);
-
       prevElementLength = elementLength;
     }
   }
