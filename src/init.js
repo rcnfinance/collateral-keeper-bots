@@ -19,6 +19,10 @@ module.exports = async () => {
       '-t, --take',
       'Execute Take bot',
     )
+    .option(
+      '-r, --reporter',
+      'Execute Reporter',
+    )
     .parse(process.argv);
 
   process.environment = require('../environment.js');
@@ -28,4 +32,5 @@ module.exports = async () => {
 
   process.takeOn = program.take;
   process.claimOn = program.claim;
+  process.reporterOn = program.reporter;
 };
