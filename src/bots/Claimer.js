@@ -28,12 +28,21 @@ module.exports = class Claimer extends Bot {
   async createElement(id) {
     try {
       const entry = await this.getEntry(id);
-      const debtOracle = (await process.contracts.debtEngine.methods.debts(entry.debtId).call()).oracle;
+      const debt = await process.contracts.debtEngine.methods.debts(entry.debtId).call();
+      let dueTime;
+
+      try {
+        process.contracts.model._address = debt.model;
+        dueTime = await process.contracts.model.methods.getDueTime(entry.debtId).call();
+      } catch(error) {
+        dueTime = null;
+      }
 
       return {
         id,
         entry,
-        debtOracle,
+        debtOracle: debt.oracle,
+        dueTime
       };
     } catch(error) {
       api.reportError('#Claimer/createElement/Error', id, error);
@@ -43,7 +52,7 @@ module.exports = class Claimer extends Bot {
 
   async isAlive(element) {
     try {
-      element.entry = await process.contracts.collateral.methods.entries(element.id).call();
+      element.entry = await this.getEntry(element.id);
       if (!element.entry) // If the entry was deleted
         return 'The entry was deleted or not exist';
 

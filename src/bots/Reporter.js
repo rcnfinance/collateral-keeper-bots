@@ -49,12 +49,17 @@ module.exports = class Reporter {
     let resp;
     try {
       element = await bot.createElement(bytes32(id));
+
       api.report('New Element', element);
 
       resp = await bot.isAlive(element);
 
       while (resp.alive) {
-        for ( // Wait for new block
+        element.now = this.lastProcessBlock.timestamp.toString();
+        await this.reportElement(bot, element);
+
+        // Wait for new block
+        for (
           let lastElementProcessBlock = this.lastProcessBlock;
           lastElementProcessBlock.number == this.lastProcessBlock.number;
           await sleep(1000)
@@ -72,5 +77,13 @@ module.exports = class Reporter {
       api.report('End Element on Error', { id, reason: resp.alive });
 
     totalAlive--;
+  }
+
+  async reportElement(bot, element) {
+    if (bot == this.claimer) {
+      await api.report('Claimer Entry', element);
+    } else {
+      await api.report('Taker Auction', element);
+    }
   }
 };
