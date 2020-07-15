@@ -1,19 +1,30 @@
 const Bot = require('./Bot.js');
 const api = require('../api.js');
-const { getOracleData, bytes320x } = require('../utils.js');
+const { bytes320x, getOracleData } = require('../utils.js');
+
+let auctionMethods;
+let collMethods;
+let callManager;
 
 module.exports = class Taker extends Bot {
+  constructor() {
+    super();
+
+    auctionMethods = process.contracts.auction.methods;
+    collMethods = process.contracts.collateral.methods;
+    callManager = process.callManager;
+  }
+
+  async init() {
+    this.baseToken = await callManager.call(collMethods.loanManagerToken());
+  }
+
   async elementsLength() {
-    try {
-      return await process.contracts.auction.methods.getAuctionsLength().call();
-    } catch (error) {
-      console.log('#Taker/elementsLength/Error:\n', error);
-      return 0;
-    }
+    return await callManager.call(auctionMethods.getAuctionsLength());
   }
 
   async getAuction(id) {
-    const auction = await process.contracts.auction.methods.auctions(id).call();
+    const auction = await callManager.call(auctionMethods.auctions(id));
 
     return {
       fromToken: auction.fromToken,
@@ -26,43 +37,34 @@ module.exports = class Taker extends Bot {
   }
 
   async createElement(id) {
-    try {
-      const auction = await this.getAuction(id);
+    const auction = await this.getAuction(id);
 
-      const entryId = await process.contracts.collateral.methods.auctionToEntry(id).call();
-      const entry = await process.contracts.collateral.methods.entries(entryId).call();
-      const debtOracle = (await process.contracts.debtEngine.methods.debts(entry.debtId).call()).oracle;
+    const entryId = await callManager.call(collMethods.auctionToEntry(id));
+    const entry = await callManager.call(collMethods.entries(entryId));
+    const debt = await callManager.call(process.contracts.debtEngine.methods.debts(entry.debtId));
 
-      const baseToken = await process.contracts.collateral.methods.loanManagerToken().call();
-
-      return {
-        id: auction.fromToken == baseToken ? bytes320x : id,
-        auction,
-        debtOracle,
-      };
-    } catch (error) {
-      api.reportError('#Taker/createElement/Error', id, error);
-      return false;
-    }
+    return {
+      id,
+      auction,
+      debtOracle: debt.oracle,
+    };
   }
 
   async isAlive(element) {
-    try {
-      element.auction = await this.getAuction(element.id);
+    element.auction = await this.getAuction(element.id);
 
-      if (element.auction && element.auction.amount != '0')
-        return { alive: true};
-      else
-        return { alive: false, reason: 'The auction was bougth or not exists' };
-    } catch (error) {
-      api.reportError('#Taker/isAlive/Error', element, error);
-      return { alive: false, reason: 'The isAlive function have an error' };
-    }
+    if (element.auction && element.auction.amount != '0')
+      return { alive: true};
+    else
+      return { alive: false, reason: 'The auction was bougth or not exists' };
   }
 
   async canSendTx(element) {
     try {
       // When take an auction?
+      // if (element.auction.fromToken === this.baseToken)
+      //   ;
+
       return true;
     } catch (error) {
       api.reportError('#Taker/canSendTx/Error', element, error);
@@ -82,11 +84,23 @@ module.exports = class Taker extends Bot {
     );
 
     if (tx instanceof Error) {
-      api.reportError('#Taker/sendTx/Auction on Error', element, tx);
+      await this.reportError( element, 'sendTx', tx);
     }
   }
 
   elementsAliveLog() {
     console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
+  }
+
+  async reportNewElement(element) {
+    await api.report('Auctions', element);
+  }
+
+  async reportEndElement(element) {
+    await api.report('Auctions', element);
+  }
+
+  async reportError(element, funcName, error) {
+    await api.report('AuctionsErrors', { element, funcName, error });
   }
 };

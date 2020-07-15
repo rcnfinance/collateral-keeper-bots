@@ -1,6 +1,7 @@
 const program = require('commander');
 const Web3 = require('web3');
 const WalletManager = require('./WalletManager.js');
+const CallManager = require('./CallManager.js');
 
 module.exports = async () => {
   console.log('Start Log:', Date().toString());
@@ -29,6 +30,7 @@ module.exports = async () => {
   process.web3 = new Web3(new Web3.providers.HttpProvider(process.environment.node));
   process.contracts = await require('./contracts.js')();
   process.walletManager = new WalletManager(program.pks);
+  process.callManager = new CallManager();
 
   process.takeOn = program.take;
   process.claimOn = program.claim;

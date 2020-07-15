@@ -20,7 +20,7 @@ module.exports = class Bot {
       if (elementLength != prevElementLength)
         this.elementsAliveLog();
 
-      api.report('Last Process Block', this.lastProcessBlock);
+      api.report('lastProcessBlock', this.lastProcessBlock);
 
       this.lastProcessBlock = await waitNewBlock(this.lastProcessBlock);
 
@@ -31,34 +31,28 @@ module.exports = class Bot {
   async processElement(elementId) {
     this.totalAliveElement++;
 
-    let element;
-    let resp;
-    try {
-      element = await this.createElement(bytes32(elementId));
-      api.report('New Element', element);
+    const element = await this.createElement(bytes32(elementId));
+    await this.reportNewElement(element);
+
+    let resp = await this.isAlive(element);
+
+    while (resp.alive) {
+      if (await this.canSendTx(element))
+        await this.sendTx(element);
+
+      for ( // Wait for new block
+        let lastElementProcessBlock = this.lastProcessBlock;
+        lastElementProcessBlock.number == this.lastProcessBlock.number;
+        await sleep(1000)
+      );
 
       resp = await this.isAlive(element);
-
-      while (resp.alive) {
-        if (await this.canSendTx(element))
-          await this.sendTx(element);
-
-        for ( // Wait for new block
-          let lastElementProcessBlock = this.lastProcessBlock;
-          lastElementProcessBlock.number == this.lastProcessBlock.number;
-          await sleep(1000)
-        );
-
-        resp = await this.isAlive(element);
-      }
-    } catch (error) {
-      await api.reportError('#Bot/processElement/Error', elementId, error);
     }
 
     if (element)
-      api.report('End Element', { element, reason: resp.reason });
-    else
-      api.report('End Element on Error', { elementId, reason: resp.alive });
+      element.reason = resp.reason;
+
+    await this.reportEndElement(element);
 
     this.totalAliveElement--;
   }
@@ -89,5 +83,19 @@ module.exports = class Bot {
 
   async elementsAliveLog() {
     throw new Error('Not implement: elementsAliveLog');
+  }
+
+  // Report Abstract functions
+
+  async reportNewElement(element) {
+    throw new Error('Not implement: reportNewElement');
+  }
+
+  async reportEndElement(element) {
+    throw new Error('Not implement: reportEndElement');
+  }
+
+  async reportError(element, funcName, error) {
+    throw new Error('Not implement: reportError');
   }
 };

@@ -5,15 +5,17 @@ const Reporter = require('./src/bots/Reporter.js');
 
 async function main() {
   await init();
-
-  if (process.takeOn) {
-    const taker = new Taker();
-    taker.process();
-  }
+  process.callManager.sendCalls();
 
   if (process.claimOn) {
     const claimer = new Claimer();
     claimer.process();
+  }
+
+  if (process.takeOn) {
+    const taker = new Taker();
+    await taker.init();
+    taker.process();
   }
 
   if (process.reporterOn) {
