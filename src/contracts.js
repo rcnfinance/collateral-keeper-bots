@@ -3,12 +3,12 @@ module.exports = async () => {
 
   contracts.multicall = await new process.web3.eth.Contract(
     require('./abis/multicallAbi.json'),
-    process.environment.multicallAddress
+    process.configDefault.MULTICALL_ADDRESS
   );
 
   contracts.collateral = await new process.web3.eth.Contract(
     require('./abis/collateralAbi.json'),
-    process.environment.collateralAddress
+    process.configDefault.COLLATERAL_ADDRESS
   );
 
   try {

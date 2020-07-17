@@ -1,7 +1,7 @@
 const { bn, address0x } = require('../utils.js');
 const { anAddress, modelAddress } = require('./testEnv.js');
 
-const collateralAddress = process.environment.collateralAddress;
+const collateralAddress = process.configDefault.COLLATERAL_ADDRESS;
 const debtEngineAddress = process.contracts.debtEngine._address;
 const loanManagerAddress = process.contracts.loanManager._address;
 

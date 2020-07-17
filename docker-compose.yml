@@ -1,0 +1,11 @@
+version: '2'
+services:
+  keepers:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./:/project
