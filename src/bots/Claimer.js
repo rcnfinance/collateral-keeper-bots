@@ -1,80 +1,111 @@
 const Bot = require('./Bot.js');
+const api = require('../api.js');
 const { PAID_DEBT_STATUS, address0x, getOracleData } = require('../utils.js');
 
+let collMethods;
+let debtEngineMethods;
+let loanManagerMethods;
+let callManager;
+
 module.exports = class Claimer extends Bot {
-  elementsAliveLog () {
-    console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
+  constructor() {
+    super();
+
+    collMethods = process.contracts.collateral.methods;
+    debtEngineMethods = process.contracts.debtEngine.methods;
+    loanManagerMethods = process.contracts.loanManager.methods;
+    callManager = process.callManager;
   }
 
-  async elementsLength () {
-    try {
-      return await process.contracts.collateral.methods.getEntriesLength().call();
-    } catch (error) {
-      console.log('#Claimer/elementsLength/Error:\n', error);
-      return 0;
-    }
+  async elementsLength() {
+    return await callManager.call(collMethods.getEntriesLength());
   }
 
-  async createElement (entryId) {
-    try {
-      const debtId = (await process.contracts.collateral.methods.entries(entryId).call()).debtId;
-      const debtOracle = (await process.contracts.debtEngine.methods.debts(debtId).call()).oracle;
+  async getEntry(id) {
+    const entry = await callManager.call(collMethods.entries(id));
 
-      return {
-        entryId,
-        debtId,
-        debtOracle,
-      };
-    } catch (error) {
-      console.log('#Claimer/createElement/Error:', entryId, '\n', error);
+    return {
+      debtId: entry.debtId,
+      amount: entry.amount,
+      oracle: entry.oracle,
+      token: entry.token,
+      liquidationRatio: entry.liquidationRatio,
+      balanceRatio: entry.balanceRatio,
+    };
+  }
+
+  async createElement(id) {
+    const entry = await this.getEntry(id);
+    const debt = await callManager.call(debtEngineMethods.debts(entry.debtId));
+
+    return {
+      id,
+      entry,
+      debtOracle: debt.oracle
+    };
+  }
+
+  async isAlive(element) {
+    element.entry = await this.getEntry(element.id);
+    if (!element.entry) // If the entry was deleted
+      return 'The entry was deleted or not exist';
+
+    const status = await callManager.call(
+      loanManagerMethods.getStatus(element.entry.debtId),
+      true
+    );
+
+    if (status instanceof Error)
+      return { alive: false, reason: 'Error on call: getStatus()'};
+    else if (status !== PAID_DEBT_STATUS)
+      return { alive: true };
+    else
+      return { alive: false, reason: 'The debt of the entry was paid' };
+  }
+
+  async canSendTx(element) {
+    const debtToEntry = await callManager.call(collMethods.debtToEntry(element.entry.debtId));
+
+    if (element.entry.amount == 0 || debtToEntry == 0)
       return false;
-    }
+
+    const resp = await callManager.call(collMethods.canClaim(
+      element.entry.debtId,
+      await getOracleData(element.debtOracle)
+    ), true);
+
+    return !(resp instanceof Error) && resp;
   }
 
-  async canSendTx (localEntry) {
-    try {
-      const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
-      const debtToEntry = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
-
-      if (entry.amount == 0 || debtToEntry == 0)
-        return false;
-
-      return await process.contracts.collateral.methods.canClaim(
-        localEntry.debtId,
-        await getOracleData(localEntry.debtOracle)
-      ).call();
-    } catch (error) {
-      console.log('#Claimer/canSendTx/Error:', localEntry.entryId, '\n', error);
-      return false;
-    }
-  }
-
-  async sendTx (localEntry) {
-    const debtOracleData = await getOracleData(localEntry.debtOracle);
+  async sendTx(element) {
+    const debtOracleData = await getOracleData(element.debtOracle);
 
     const tx = await process.walletManager.sendTx(
-      process.contracts.collateral.methods.claim(
+      collMethods.claim(
         address0x,
-        localEntry.debtId,
+        element.entry.debtId,
         debtOracleData
       )
     );
 
-    if (tx instanceof Error)
-      console.log('#Claimer/sendTx/Entry on Error:', localEntry.entryId, '\n', tx);
+    if (tx instanceof Error) {
+      await this.reportError( element, 'sendTx', tx);
+    }
   }
 
-  async isAlive (localEntry) {
-    try {
-      const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
-      if (!entry) // If the entry was deleted
-        return false;
+  elementsAliveLog() {
+    console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
+  }
 
-      const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
-      return debtStatus !== PAID_DEBT_STATUS;
-    } catch (error) {
-      console.log('#Claimer/isAlive/Error:', localEntry.entryId, '\n', error);
-      return false;
-    }
+  async reportNewElement(element) {
+    await api.report('Entries', element);
+  }
+
+  async reportEndElement(element) {
+    await api.report('Entries', element);
+  }
+
+  async reportError(element, funcName, error) {
+    await api.report('EntriesErrors', { element, funcName, error });
   }
 };
