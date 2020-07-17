@@ -23,7 +23,7 @@ module.exports = class CallManager {
     this.buffer.push(consult);
 
     while (consult.response === undefined) {
-      await sleep(process.environment.callManager.awaitResponse);
+      await sleep(process.configDefault.CALL_MANAGER.AWAIT_RESPONSE);
     }
 
     return consult.response;
@@ -44,7 +44,7 @@ module.exports = class CallManager {
             this.buffer.push(calls[i]);
         }
 
-      await sleep(process.environment.callManager.awaitCall);
+      await sleep(process.configDefault.CALL_MANAGER.AWAIT_CALL);
     }
   }
 
@@ -53,7 +53,7 @@ module.exports = class CallManager {
   getCalls() {
     const calls = [];
 
-    for (let i = 0; i < process.environment.callManager.maxCalls; i++)
+    for (let i = 0; i < process.configDefault.CALL_MANAGER.MAX_CALLS; i++)
       if (this.buffer.length) {
         const call = this.buffer.shift();
         calls.push(call);

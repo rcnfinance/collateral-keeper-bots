@@ -1,5 +1,6 @@
 const program = require('commander');
 const Web3 = require('web3');
+
 const WalletManager = require('./WalletManager.js');
 const CallManager = require('./CallManager.js');
 
@@ -10,11 +11,13 @@ function splitAddresses(addresses) {
 module.exports = async () => {
   console.log('Start Log:', Date().toString());
 
+  process.configDefault = require('../configDefault.js');
+
   program
     .option(
       '-p, --pks [addresses]',
       'A private key',
-      process.env.BOT_PKS
+      process.configDefault.BOT_PKS
     )
     .option(
       '-c, --claim',
@@ -31,15 +34,19 @@ module.exports = async () => {
     .option(
       '-n, --node <url>',
       'URL Node Ethereum',
-      process.env.URL_NODE_ETHEREUM
+      process.configDefault.URL_NODE_ETHEREUM
     )
     .option(
-      '-c, --collateralAddress <address>',
+      '-ca, --collateralAddress <address>',
       'Collateral address',
-      process.env.COLLATERAL_ADDRESS
+      process.configDefault.COLLATERAL_ADDRESS
+    )
+    .option(
+      '-m, --multicallAddress <address>',
+      'Multicall address',
+      process.configDefault.MULTICALL_ADDRESS
     )
     .parse(process.argv);
-
 
   process.environment = program.opts();
   // fix process pks split
@@ -50,8 +57,7 @@ module.exports = async () => {
   process.walletManager = new WalletManager(process.environment.pks);
   process.callManager = new CallManager();
 
-
   process.takeOn = process.environment.take;
   process.claimOn = process.environment.claim;
-  //process.reporterOn = process.environment.claim;
+  //process.reporterOn = process.environment.reporter;
 };
