@@ -18,11 +18,11 @@ module.exports = class Claimer extends Bot {
   }
 
   async elementsLength() {
-    return await callManager.call(collMethods.getEntriesLength());
+    return await callManager.multiCall(collMethods.getEntriesLength());
   }
 
   async getEntry(id) {
-    const entry = await callManager.call(collMethods.entries(id));
+    const entry = await callManager.multiCall(collMethods.entries(id));
 
     return {
       debtId: entry.debtId,
@@ -36,7 +36,7 @@ module.exports = class Claimer extends Bot {
 
   async createElement(id) {
     const entry = await this.getEntry(id);
-    const debt = await callManager.call(debtEngineMethods.debts(entry.debtId));
+    const debt = await callManager.multiCall(debtEngineMethods.debts(entry.debtId));
 
     return {
       id,
@@ -50,10 +50,7 @@ module.exports = class Claimer extends Bot {
     if (!element.entry) // If the entry was deleted
       return 'The entry was deleted or not exist';
 
-    const status = await callManager.call(
-      loanManagerMethods.getStatus(element.entry.debtId),
-      true
-    );
+    const status = await callManager.multiCall(loanManagerMethods.getStatus(element.entry.debtId));
 
     if (status instanceof Error)
       return { alive: false, reason: 'Error on call: getStatus()'};
@@ -64,7 +61,7 @@ module.exports = class Claimer extends Bot {
   }
 
   async canSendTx(element) {
-    const debtToEntry = await callManager.call(collMethods.debtToEntry(element.entry.debtId));
+    const debtToEntry = await callManager.multiCall(collMethods.debtToEntry(element.entry.debtId));
 
     if (element.entry.amount == 0 || debtToEntry == 0)
       return false;
@@ -72,13 +69,16 @@ module.exports = class Claimer extends Bot {
     const resp = await callManager.call(collMethods.canClaim(
       element.entry.debtId,
       await getOracleData(element.debtOracle)
-    ), true);
+    ));
 
     return !(resp instanceof Error) && resp;
   }
 
   async sendTx(element) {
     const debtOracleData = await getOracleData(element.debtOracle);
+
+    element.action = 'Send Claim';
+    await api.report('Entries', element);
 
     const tx = await process.walletManager.sendTx(
       collMethods.claim(
@@ -87,6 +87,10 @@ module.exports = class Claimer extends Bot {
         debtOracleData
       )
     );
+
+    element.action = 'Complete Claim';
+    element.tx = tx;
+    await api.report('Entries', element);
 
     if (tx instanceof Error) {
       await this.reportError( element, 'sendTx', tx);
@@ -98,10 +102,12 @@ module.exports = class Claimer extends Bot {
   }
 
   async reportNewElement(element) {
+    element.action = 'New element';
     await api.report('Entries', element);
   }
 
   async reportEndElement(element) {
+    element.action = 'End element';
     await api.report('Entries', element);
   }
 

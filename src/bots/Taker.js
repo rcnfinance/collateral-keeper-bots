@@ -1,6 +1,6 @@
 const Bot = require('./Bot.js');
 const api = require('../api.js');
-const { bytes320x, getOracleData } = require('../utils.js');
+const { convertToken, getOracleData } = require('../utils.js');
 
 let auctionMethods;
 let collMethods;
@@ -16,15 +16,15 @@ module.exports = class Taker extends Bot {
   }
 
   async init() {
-    this.baseToken = await callManager.call(collMethods.loanManagerToken());
+    this.baseToken = await callManager.multiCall(collMethods.loanManagerToken());
   }
 
   async elementsLength() {
-    return await callManager.call(auctionMethods.getAuctionsLength());
+    return await callManager.multiCall(auctionMethods.getAuctionsLength());
   }
 
   async getAuction(id) {
-    const auction = await callManager.call(auctionMethods.auctions(id));
+    const auction = await callManager.multiCall(auctionMethods.auctions(id));
 
     return {
       fromToken: auction.fromToken,
@@ -39,13 +39,14 @@ module.exports = class Taker extends Bot {
   async createElement(id) {
     const auction = await this.getAuction(id);
 
-    const entryId = await callManager.call(collMethods.auctionToEntry(id));
-    const entry = await callManager.call(collMethods.entries(entryId));
-    const debt = await callManager.call(process.contracts.debtEngine.methods.debts(entry.debtId));
+    const entryId = await callManager.multiCall(collMethods.auctionToEntry(id));
+    const entry = await callManager.multiCall(collMethods.entries(entryId));
+    const debt = await callManager.multiCall(process.contracts.debtEngine.methods.debts(entry.debtId));
 
     return {
       id,
       auction,
+      entry,
       debtOracle: debt.oracle,
     };
   }
@@ -61,11 +62,12 @@ module.exports = class Taker extends Bot {
 
   async canSendTx(element) {
     try {
-      // When take an auction?
-      // if (element.auction.fromToken === this.baseToken)
-      //   ;
+      const offer = await callManager.multiCall(auctionMethods.offer(element.id));
+      // In Base token
+      const sendValue = offer.requesting;
+      const getValue = await convertToken(element.entry.oracle, offer.selling);
 
-      return true;
+      return sendValue < getValue;
     } catch (error) {
       api.reportError('#Taker/canSendTx/Error', element, error);
       return false;
@@ -75,6 +77,9 @@ module.exports = class Taker extends Bot {
   async sendTx(element) {
     const debtOracleData = await getOracleData(element.debtOracle);
 
+    element.action = 'Send Claim';
+    await api.report('Auctions', element);
+
     const tx = await process.walletManager.sendTx(
       process.contracts.auction.methods.take(
         element.id,     // Auction id, in uint256
@@ -82,6 +87,10 @@ module.exports = class Taker extends Bot {
         false           // If the auction contract, call the "onTake(uint256,uint256)" function
       )
     );
+
+    element.action = 'Complete Claim';
+    element.tx = tx;
+    await api.report('Auctions', element);
 
     if (tx instanceof Error) {
       await this.reportError( element, 'sendTx', tx);

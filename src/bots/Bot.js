@@ -1,4 +1,4 @@
-const { sleep, bytes32, getBlock, waitNewBlock } = require('../utils.js');
+const { sleep, bytes32, getBlock } = require('../utils.js');
 const api = require('../api.js');
 
 module.exports = class Bot {
@@ -22,7 +22,8 @@ module.exports = class Bot {
 
       api.report('lastProcessBlock', this.lastProcessBlock);
 
-      this.lastProcessBlock = await waitNewBlock(this.lastProcessBlock);
+      this.lastProcessBlock = await this.waitNewBlock(this.lastProcessBlock);
+      console.log(this.lastProcessBlock.number);
 
       prevElementLength = elementLength;
     }
@@ -43,7 +44,7 @@ module.exports = class Bot {
       for ( // Wait for new block
         let lastElementProcessBlock = this.lastProcessBlock;
         lastElementProcessBlock.number == this.lastProcessBlock.number;
-        await sleep(1000)
+        await sleep(process.configDefault.AWAIT_THREAD)
       );
 
       resp = await this.isAlive(element);
@@ -55,6 +56,16 @@ module.exports = class Bot {
     await this.reportEndElement(element);
 
     this.totalAliveElement--;
+  }
+
+  async waitNewBlock(lastCheckBlock) {
+    let lastBlock = await getBlock();
+
+    for (; lastCheckBlock.number == lastBlock.number; lastBlock = await getBlock()) {
+      await sleep(process.configDefault.AWAIT_GET_BLOCK);
+    }
+
+    return lastBlock;
   }
 
   // Abstract functions

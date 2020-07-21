@@ -5,7 +5,7 @@ const Reporter = require('./src/bots/Reporter.js');
 
 async function main() {
   await init();
-  process.callManager.sendCalls();
+  process.callManager.processCalls();
 
   if (process.claimOn) {
     const claimer = new Claimer();

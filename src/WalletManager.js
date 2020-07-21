@@ -44,7 +44,7 @@ module.exports = class WalletManager {
       objTx.address = this.pop();
 
       while (!objTx.address) {
-        await sleep(5000);
+        await sleep(process.configDefault.AWAIT_THREAD);
         objTx.address = this.pop();
       }
     } else {

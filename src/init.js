@@ -8,6 +8,7 @@ module.exports = async () => {
 
   process.configDefault = require('../configDefault.js');
   process.web3 = new Web3(new Web3.providers.HttpProvider(process.env.URL_NODE_ETHEREUM));
+  console.log(process.configDefault);
   process.contracts = await require('./contracts.js')();
 
   // fix process pks split

@@ -23,24 +23,16 @@ module.exports.getBlock = async (number = 'latest') => {
   }
 };
 
-module.exports.waitNewBlock = async (lastCheckBlock) => {
-  let lastBlock = await this.getBlock();
-
-  for (; lastCheckBlock.number == lastBlock.number; lastBlock = await this.getBlock()) {
-    await this.sleep(1000);
-  }
-
-  return lastBlock;
-};
-
 module.exports.getOracleData = async (oracle) => {
   if (oracle === this.address0x)
     return '0x';
 
+  return '0x';
+
+  // TODO If the oracle needs a data
   process.contracts.rateOracle._address = oracle;
   const oracleUrl = await process.callManager.call(
-    process.contracts.rateOracle.methods.url(),
-    true
+    process.contracts.rateOracle.methods.url()
   );
 
   // If dont have URL, the oracle data its empty
@@ -48,4 +40,16 @@ module.exports.getOracleData = async (oracle) => {
     return '0x';
 
   throw new Error('TODO: get oracle data from url and return the oracle data:', oracleUrl);
-}
+};
+
+module.exports.convertToken = async (oracle, amount) => {
+  if (oracle == this.address0x)
+    return amount;
+
+  process.contracts.rateOracle._address = oracle;
+  const sample = await process.callManager.multiCall(
+    process.contracts.rateOracle.methods.readSample('0x')
+  );
+
+  return this.bn(amount).mul(this.bn(sample._tokens)).div(sample._equivalent);
+};

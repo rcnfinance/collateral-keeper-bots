@@ -8,9 +8,10 @@ module.exports = {
   CLAIM: process.env.CLAIM,
   REPORTER: process.env.REPORTER,
   URL_INFLUX: process.env.URL_INFLUX,
+  AWAIT_THREAD: process.env.AWAIT_THREAD || 200,
+  AWAIT_GET_BLOCK: process.env.AWAIT_GET_BLOCK || 15000,
   CALL_MANAGER : {
-    AWAIT_CALL: process.env.AWAIT_CALL || 100,
-    AWAIT_RESPONSE: process.env.AWAIT_RESPONSE || 100,
-    MAX_CALLS: process.env.MAX_CALLS || 25,
+    AWAIT_CALL: process.env.AWAIT_CALL || 1000,
+    MAX_CALLS: process.env.MAX_CALLS || 50,
   }
 };
