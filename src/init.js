@@ -6,7 +6,8 @@ const CallManager = require('./CallManager.js');
 module.exports = async () => {
   console.log('Start Log:', Date().toString());
 
-  process.configDefault = require('../configDefault.js');
+  process.configDefault = require('../configDefault.js')();
+  console.log(process.configDefault);
   process.web3 = new Web3(new Web3.providers.HttpProvider(process.configDefault.URL_NODE_ETHEREUM));
   process.contracts = await require('./contracts.js')();
 
