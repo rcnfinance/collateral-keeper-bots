@@ -62,7 +62,7 @@ module.exports = class Reporter {
         for (
           let lastElementProcessBlock = this.lastProcessBlock;
           lastElementProcessBlock.number == this.lastProcessBlock.number;
-          await sleep(1000)
+          await sleep(process.configDefault.AWAIT_THREAD)
         );
 
         resp = await bot.isAlive(element);
