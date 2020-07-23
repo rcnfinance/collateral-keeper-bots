@@ -20,10 +20,9 @@ module.exports = class Bot {
       if (elementLength != prevElementLength)
         this.elementsAliveLog();
 
-      api.report('lastProcessBlock', this.lastProcessBlock);
+      api.report('lastProcessBlock', '', this.lastProcessBlock);
 
       this.lastProcessBlock = await this.waitNewBlock(this.lastProcessBlock);
-      console.log(this.lastProcessBlock.number);
 
       prevElementLength = elementLength;
     }

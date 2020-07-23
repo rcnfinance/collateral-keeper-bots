@@ -77,8 +77,7 @@ module.exports = class Claimer extends Bot {
   async sendTx(element) {
     const debtOracleData = await getOracleData(element.debtOracle);
 
-    element.action = 'Send Claim';
-    await api.report('Entries', element);
+    await api.report('Entries', 'Send Claim', element);
 
     const tx = await process.walletManager.sendTx(
       collMethods.claim(
@@ -88,12 +87,11 @@ module.exports = class Claimer extends Bot {
       )
     );
 
-    element.action = 'Complete Claim';
     element.tx = tx;
-    await api.report('Entries', element);
+    await api.report('Entries', 'Complete Claim', element);
 
     if (tx instanceof Error) {
-      await this.reportError( element, 'sendTx', tx);
+      this.reportError( element, 'sendTx', tx);
     }
   }
 
@@ -102,13 +100,11 @@ module.exports = class Claimer extends Bot {
   }
 
   async reportNewElement(element) {
-    element.action = 'New element';
-    await api.report('Entries', element);
+    await api.report('Entries', 'New element', element);
   }
 
   async reportEndElement(element) {
-    element.action = 'End element';
-    await api.report('Entries', element);
+    await api.report('Entries', 'End element', element);
   }
 
   async reportError(element, funcName, error) {

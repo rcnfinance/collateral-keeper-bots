@@ -2,10 +2,11 @@
 
 //const urlBase = '';
 
-module.exports.report = (tableName, element) => {
+module.exports.report = (tableName, action, element) => {
   const message = {
     name: '<bot_name>',
     measurement: tableName,
+    action,
     data: element,
   };
 

@@ -69,7 +69,7 @@ module.exports = class Taker extends Bot {
 
       return sendValue < getValue;
     } catch (error) {
-      api.reportError('#Taker/canSendTx/Error', element, error);
+      api.reportError(element, 'canSendTx', error);
       return false;
     }
   }
@@ -77,8 +77,7 @@ module.exports = class Taker extends Bot {
   async sendTx(element) {
     const debtOracleData = await getOracleData(element.debtOracle);
 
-    element.action = 'Send Claim';
-    await api.report('Auctions', element);
+    await api.report('Auctions', 'Send Claim',element);
 
     const tx = await process.walletManager.sendTx(
       process.contracts.auction.methods.take(
@@ -88,12 +87,11 @@ module.exports = class Taker extends Bot {
       )
     );
 
-    element.action = 'Complete Claim';
     element.tx = tx;
-    await api.report('Auctions', element);
+    await api.report('Auctions', 'Complete Claim', element);
 
     if (tx instanceof Error) {
-      await this.reportError( element, 'sendTx', tx);
+      this.reportError( element, 'sendTx', tx);
     }
   }
 
@@ -102,11 +100,11 @@ module.exports = class Taker extends Bot {
   }
 
   async reportNewElement(element) {
-    await api.report('Auctions', element);
+    await api.report('Auctions', 'New element', element);
   }
 
   async reportEndElement(element) {
-    await api.report('Auctions', element);
+    await api.report('Auctions', 'End element', element);
   }
 
   async reportError(element, funcName, error) {
