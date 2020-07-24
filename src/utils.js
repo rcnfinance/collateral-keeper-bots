@@ -43,6 +43,8 @@ module.exports.getOracleData = async (oracle) => {
 };
 
 module.exports.convertToken = async (oracle, amount) => {
+  amount = this.bn(amount);
+
   if (oracle == this.address0x)
     return amount;
 
@@ -51,5 +53,5 @@ module.exports.convertToken = async (oracle, amount) => {
     process.contracts.rateOracle.methods.readSample('0x')
   );
 
-  return this.bn(amount).mul(this.bn(sample._tokens)).div(sample._equivalent);
+  return amount.mul(this.bn(sample._tokens)).div(this.bn(sample._equivalent));
 };

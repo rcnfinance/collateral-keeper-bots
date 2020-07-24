@@ -1,6 +1,6 @@
 const Bot = require('./Bot.js');
 const api = require('../api.js');
-const { convertToken, getOracleData } = require('../utils.js');
+const { convertToken, getOracleData, bn } = require('../utils.js');
 
 let auctionMethods;
 let collMethods;
@@ -64,10 +64,10 @@ module.exports = class Taker extends Bot {
     try {
       const offer = await callManager.multiCall(auctionMethods.offer(element.id));
       // In Base token
-      const sendValue = offer.requesting;
+      const sendValue = bn(offer.requesting);
       const getValue = await convertToken(element.entry.oracle, offer.selling);
 
-      return sendValue < getValue;
+      return sendValue.lt(getValue);
     } catch (error) {
       api.reportError(element, 'canSendTx', error);
       return false;
