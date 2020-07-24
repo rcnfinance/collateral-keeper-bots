@@ -21,21 +21,8 @@ module.exports = class Claimer extends Bot {
     return await callManager.multiCall(collMethods.getEntriesLength());
   }
 
-  async getEntry(id) {
-    const entry = await callManager.multiCall(collMethods.entries(id));
-
-    return {
-      debtId: entry.debtId,
-      amount: entry.amount,
-      oracle: entry.oracle,
-      token: entry.token,
-      liquidationRatio: entry.liquidationRatio,
-      balanceRatio: entry.balanceRatio,
-    };
-  }
-
   async createElement(id) {
-    const entry = await this.getEntry(id);
+    const entry = await callManager.multiCall(collMethods.entries(id));
     const debt = await callManager.multiCall(debtEngineMethods.debts(entry.debtId));
 
     return {
@@ -46,7 +33,7 @@ module.exports = class Claimer extends Bot {
   }
 
   async isAlive(element) {
-    element.entry = await this.getEntry(element.id);
+    element.entry = await callManager.multiCall(collMethods.entries(element.id));
     if (!element.entry) // If the entry was deleted
       return 'The entry was deleted or not exist';
 

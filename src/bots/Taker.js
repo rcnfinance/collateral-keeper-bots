@@ -23,21 +23,8 @@ module.exports = class Taker extends Bot {
     return await callManager.multiCall(auctionMethods.getAuctionsLength());
   }
 
-  async getAuction(id) {
-    const auction = await callManager.multiCall(auctionMethods.auctions(id));
-
-    return {
-      fromToken: auction.fromToken,
-      startTime: auction.startTime,
-      limitDelta: auction.limitDelta,
-      startOffer: auction.startOffer,
-      amount: auction.amount,
-      limit: auction.limit,
-    };
-  }
-
   async createElement(id) {
-    const auction = await this.getAuction(id);
+    const auction = await callManager.multiCall(auctionMethods.auctions(id));
 
     const entryId = await callManager.multiCall(collMethods.auctionToEntry(id));
     const entry = await callManager.multiCall(collMethods.entries(entryId));
@@ -52,7 +39,7 @@ module.exports = class Taker extends Bot {
   }
 
   async isAlive(element) {
-    element.auction = await this.getAuction(element.id);
+    element.auction = await callManager.multiCall(auctionMethods.auctions(element.id));
 
     if (element.auction && element.auction.amount != '0')
       return { alive: true};
@@ -65,6 +52,7 @@ module.exports = class Taker extends Bot {
       const offer = await callManager.multiCall(auctionMethods.offer(element.id));
       // In Base token
       const sendValue = bn(offer.requesting);
+      console.log(element.entry.oracle);
       const getValue = await convertToken(element.entry.oracle, offer.selling);
 
       return sendValue.lt(getValue);
