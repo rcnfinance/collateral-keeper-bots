@@ -12,14 +12,10 @@ module.exports = async () => {
   process.contracts = await require('./contracts.js')();
 
   // fix process pks split
-  // process.configDefault.BOT_PKS = splitAddresses(process.configDefault.BOT_PKS);
-  process.walletManager = new WalletManager([ process.configDefault.BOT_PKS ]);
+  process.walletManager = new WalletManager();
+  await process.walletManager.init();
   process.callManager = new CallManager();
 
   process.takeOn = process.configDefault.TAKE;
   process.claimOn = process.configDefault.CLAIM;
 };
-
-function splitAddresses(addresses) {
-  return addresses.split(',');
-}

@@ -41,18 +41,23 @@ module.exports = class Taker extends Bot {
   async isAlive(element) {
     element.auction = await callManager.multiCall(auctionMethods.auctions(element.id));
 
-    if (element.auction && element.auction.amount != '0')
-      return { alive: true};
+    if (element.auction && element.auction.amount != 0)
+      return { alive: true };
     else
       return { alive: false, reason: 'The auction was bougth or not exists' };
   }
 
   async canSendTx(element) {
     try {
+      if (element.auction.fromToken == this.baseToken && process.configDefault.SUBSIDEZE_TAKE) {
+        const offer = await callManager.multiCall(auctionMethods.offer(element.id));
+
+        return bn(offer.requesting).eq(bn(offer.selling));
+      }
+
       const offer = await callManager.multiCall(auctionMethods.offer(element.id));
       // In Base token
       const sendValue = bn(offer.requesting);
-      console.log(element.entry.oracle);
       const getValue = await convertToken(element.entry.oracle, offer.selling);
 
       return sendValue.lt(getValue);

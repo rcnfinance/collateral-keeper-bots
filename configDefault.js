@@ -1,6 +1,6 @@
 const defaultConfig = {
-  AWAIT_THREAD: 200,
   AWAIT_GET_BLOCK: 15000,
+  AWAIT_THREAD: 100,
   // CallManager
   AWAIT_CALL: 1000,
   MAX_CALLS: 50,
@@ -8,15 +8,16 @@ const defaultConfig = {
 
 module.exports = () => {
   const config = {// strings, no require cast
-    BOT_PKS: process.env.BOT_PKS,
     URL_NODE_ETHEREUM: process.env.URL_NODE_ETHEREUM,
     COLLATERAL_ADDRESS: process.env.COLLATERAL_ADDRESS,
     MULTICALL_ADDRESS: process.env.MULTICALL_ADDRESS,
+    BOT_PK: process.env.BOT_PK,
     URL_INFLUX: process.env.URL_INFLUX,
   };
 
   config.TAKE = toBool(process.env.TAKE);
   config.CLAIM = toBool(process.env.CLAIM);
+  config.SUBSIDEZE_TAKE = toBool(process.env.SUBSIDEZE_TAKE);
 
   config.AWAIT_THREAD = toInt(process.env.AWAIT_THREAD, defaultConfig.AWAIT_THREAD);
   config.AWAIT_GET_BLOCK = toInt(process.env.AWAIT_GET_BLOCK, defaultConfig.AWAIT_GET_BLOCK);

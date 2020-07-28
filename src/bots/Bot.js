@@ -41,8 +41,8 @@ module.exports = class Bot {
         await this.sendTx(element);
 
       for ( // Wait for new block
-        let lastElementProcessBlock = this.lastProcessBlock;
-        lastElementProcessBlock.number == this.lastProcessBlock.number;
+        let lastProcessBlock = this.lastProcessBlock;
+        lastProcessBlock.number == this.lastProcessBlock.number;
         await sleep(process.configDefault.AWAIT_THREAD)
       );
 
