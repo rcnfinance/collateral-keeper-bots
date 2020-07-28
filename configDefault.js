@@ -17,7 +17,6 @@ module.exports = () => {
 
   config.TAKE = toBool(process.env.TAKE);
   config.CLAIM = toBool(process.env.CLAIM);
-  config.REPORTER = toBool(process.env.REPORTER);
 
   config.AWAIT_THREAD = toInt(process.env.AWAIT_THREAD, defaultConfig.AWAIT_THREAD);
   config.AWAIT_GET_BLOCK = toInt(process.env.AWAIT_GET_BLOCK, defaultConfig.AWAIT_GET_BLOCK);

@@ -18,7 +18,6 @@ module.exports = async () => {
 
   process.takeOn = process.configDefault.TAKE;
   process.claimOn = process.configDefault.CLAIM;
-  //process.reporterOn = process.configDefault.REPORTER;
 };
 
 function splitAddresses(addresses) {
