@@ -2,7 +2,7 @@ const { bn } = require('./utils.js');
 
 module.exports = class WalletManager {
   constructor() {
-    this.lastNonce;
+    this.nonces = [];
     this.initWallet();
   }
 
@@ -24,15 +24,36 @@ module.exports = class WalletManager {
   }
 
   async init() {
-    this.lastNonce = await process.web3.eth.getTransactionCount(this.address);
+    // TODO: improve this, check the unconfirm txs
+    const lastNonce = await process.web3.eth.getTransactionCount(this.address);
+    this.nonces.push({
+      number: lastNonce,
+      complete: true,
+    });
+  }
+
+  getNonce() {
+    let nonce = this.nonces.find(x => x.complete === false);
+
+    if (nonce)
+      return nonce;
+
+    nonce = {
+      number: ++ this.nonces[this.nonces.length - 1].number
+    };
+
+    this.nonces.push(nonce);
+
+    return nonce;
   }
 
   async sendTx(func) {
-    const nonce = this.lastNonce++;
+    const nonce = this.getNonce();
 
     const gas = await this.estimateGas(func, nonce);
+
     if (gas instanceof Error) {
-      this.lastNonce--;
+      nonce.complete = false;
       return gas;
     }
 
@@ -50,7 +71,7 @@ module.exports = class WalletManager {
         from: this.address,
         gasPrice,
         gas,
-        nonce,
+        nonce: nonce.number,
       });
     } catch (error) {
       console.log(
@@ -61,6 +82,8 @@ module.exports = class WalletManager {
 
       return error;
     }
+
+    nonce.complete = true;
 
     console.log('# Wallet Manager/' + this.address + '/Complete:\n',
       '\t' + func._method.name + '(' + func.arguments + ')\n',
@@ -74,7 +97,7 @@ module.exports = class WalletManager {
       const gas = await func.estimateGas({
         from: this.address,
         gas: (await process.web3.eth.getBlock('latest')).gasLimit,
-        nonce,
+        nonce: nonce.number,
       });
 
       return bn(gas).mul(bn(12000)).div(bn(10000));
