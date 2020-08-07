@@ -60,8 +60,11 @@ module.exports = class CallManager {
         await this.sendCall();
       } else {
         if (
-          this.multiCallsBuffer.length >= process.configDefault.MAX_CALLS ||
-          awaitCont > process.configDefault.AWAIT_CALL
+          this.multiCallsBuffer.length > 0 &&
+          (
+            this.multiCallsBuffer.length >= process.configDefault.MAX_CALLS ||
+            awaitCont > process.configDefault.AWAIT_CALL
+          )
         ) {
           await this.sendMultiCall();
           awaitCont = 0;
@@ -97,7 +100,7 @@ module.exports = class CallManager {
     } catch (error) {
       console.log('sendMultiCall', error);
       for (let i = 0; i < calls.length; i++)
-        this.callsBuffer.push(calls[i]);
+        this.multiCallsBuffer.push(calls[i]);
     }
   }
 
