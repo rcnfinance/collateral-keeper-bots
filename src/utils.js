@@ -30,7 +30,7 @@ module.exports.getOracleData = async (oracle) => {
   return '0x';
 
   // TODO If the oracle needs a data
-  process.contracts.rateOracle._address = oracle;
+  process.contracts.rateOracle.methods.url().to = oracle;
   const oracleUrl = await process.callManager.call(
     process.contracts.rateOracle.methods.url()
   );
@@ -48,9 +48,10 @@ module.exports.convertToken = async (oracle, amount) => {
   if (oracle == this.address0x)
     return amount;
 
-  process.contracts.rateOracle._address = oracle;
+  const method = process.contracts.rateOracle.methods.readSample('0x');
+  method.to = oracle;
   const sample = await process.callManager.multiCall(
-    process.contracts.rateOracle.methods.readSample('0x')
+    method
   );
 
   return amount.mul(this.bn(sample._tokens)).div(this.bn(sample._equivalent));

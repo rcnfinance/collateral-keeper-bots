@@ -20,19 +20,38 @@ module.exports = class CallManager {
     return consult.response;
   }
 
-  // TODO can array methos as input
   async multiCall(method) {
     const consult = {
-      method
+      method,
+      to: method.to ? method.to : method._parent._address,
     };
 
     this.multiCallsBuffer.push(consult);
 
-    while (consult.response === undefined) {
+    while (consult.response == undefined) {
       await sleep(process.configDefault.AWAIT_THREAD);
     }
 
     return consult.response;
+  }
+
+  async multiCallArray(methods) {
+    const consults = [];
+
+    for (let i = 0; i < methods.length; i++) {
+      consults.push({
+        method: methods[i],
+        to: methods[i].to ? methods[i].to : methods[i]._parent._address,
+      });
+
+      this.multiCallsBuffer.push(consults[i]);
+    }
+
+    while (consults.some(c => c.response == undefined)) {
+      await sleep(process.configDefault.AWAIT_THREAD);
+    }
+
+    return consults.map(c => c.response);
   }
 
   async processCalls() {
@@ -62,8 +81,8 @@ module.exports = class CallManager {
     try {
       call.response = await method.call();
     } catch (error) {
-      console.log(method._parent._address, method._method.name, method._method.inputs);
-      console.log(error);
+      console.log(method._method.name, method.arguments);
+      console.log('sendCall', error);
       call.response = error;
     }
   }
@@ -76,9 +95,9 @@ module.exports = class CallManager {
       const resp = await process.contracts.multicall.methods.aggregate(multicallArg).call();
       this.translateResults(calls, resp.returnData);
     } catch (error) {
-      console.log(calls, error);
+      console.log('sendMultiCall', error);
       for (let i = 0; i < calls.length; i++)
-        this.calls.push(calls[i]);
+        this.callsBuffer.push(calls[i]);
     }
   }
 
@@ -100,7 +119,7 @@ module.exports = class CallManager {
       const method = calls[i].method;
 
       ret.push({
-        target: method._parent._address,
+        target: calls[i].to,
         callData: process.web3.eth.abi.encodeFunctionCall(method._method, method.arguments),
       });
     }
