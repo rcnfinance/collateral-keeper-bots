@@ -1,4 +1,4 @@
-const { sleep, bytes32, getBlock } = require('../utils.js');
+const { sleepThread, sleep, bytes32, getBlock } = require('../utils.js');
 const api = require('../api.js');
 
 module.exports = class Bot {
@@ -43,7 +43,7 @@ module.exports = class Bot {
       for ( // Wait for new block
         let lastProcessBlock = this.lastProcessBlock;
         lastProcessBlock.number == this.lastProcessBlock.number;
-        await sleep(process.configDefault.AWAIT_THREAD)
+        await sleepThread()
       );
 
       resp = await this.isAlive(element);

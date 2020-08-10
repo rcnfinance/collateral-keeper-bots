@@ -1,4 +1,4 @@
-const { sleep } = require('./utils');
+const { sleepThread } = require('./utils');
 
 module.exports = class CallManager {
   constructor() {
@@ -14,7 +14,7 @@ module.exports = class CallManager {
     this.callsBuffer.push(consult);
 
     while (consult.response === undefined) {
-      await sleep(process.configDefault.AWAIT_THREAD);
+      await sleepThread();
     }
 
     return consult.response;
@@ -29,7 +29,7 @@ module.exports = class CallManager {
     this.multiCallsBuffer.push(consult);
 
     while (consult.response == undefined) {
-      await sleep(process.configDefault.AWAIT_THREAD);
+      await sleepThread();
     }
 
     return consult.response;
@@ -48,7 +48,7 @@ module.exports = class CallManager {
     }
 
     while (consults.some(c => c.response == undefined)) {
-      await sleep(process.configDefault.AWAIT_THREAD);
+      await sleepThread();
     }
 
     return consults.map(c => c.response);
@@ -71,7 +71,7 @@ module.exports = class CallManager {
         }
       }
 
-      await sleep(process.configDefault.AWAIT_THREAD);
+      await sleepThread();
     }
   }
 
