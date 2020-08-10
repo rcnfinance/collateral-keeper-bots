@@ -11,9 +11,7 @@ module.exports = async () => {
   process.web3 = new Web3(new Web3.providers.HttpProvider(process.configDefault.URL_NODE_ETHEREUM));
   process.contracts = await require('./contracts.js')();
 
-  // fix process pks split
   process.walletManager = new WalletManager();
-  await process.walletManager.init();
   process.callManager = new CallManager();
 
   process.takeOn = process.configDefault.TAKE;
