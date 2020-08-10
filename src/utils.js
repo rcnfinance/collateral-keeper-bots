@@ -4,7 +4,7 @@ module.exports.address0x = '0x0000000000000000000000000000000000000000';
 module.exports.bytes320x = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 module.exports.sleepThread = async () => {
-  return await process.configDefault.AWAIT_THREAD;
+  return await this.sleep(process.configDefault.AWAIT_THREAD);
 };
 
 module.exports.sleep = async (ms) => {
