@@ -1,7 +1,3 @@
-//const axios = require('axios');
-
-//const urlBase = '';
-
 module.exports.report = (tableName, action, element) => {
   const message = {
     name: '<bot_name>',
@@ -27,5 +23,4 @@ module.exports.reportError = (tableName, element, error) => {
 };
 
 async function send(message) {
-  console.log(message);
 }
