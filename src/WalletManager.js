@@ -32,6 +32,7 @@ module.exports = class WalletManager {
     const gas = await this.estimateGas(func);
 
     if (gas instanceof Error) {
+      this.busy = false;
       return gas;
     }
 
