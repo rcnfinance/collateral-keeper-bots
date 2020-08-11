@@ -41,7 +41,7 @@ module.exports = class WalletManager {
       const gasPrice = await process.web3.eth.getGasPrice();
 
       console.log(
-        '# Wallet Manager { Address:', this.address, 'Gas:', gas.toString(), '} Send:\n',
+        '# Wallet Manager Send { Address:', this.address, 'Gas:', gas.toString(), '}\n',
         '\t' + func._method.name + '(' + func.arguments + ')'
       );
 
@@ -53,7 +53,7 @@ module.exports = class WalletManager {
     } catch (error) {
       this.busy = false;
       console.log(
-        '# Wallet Manager/', this.address, '/Error on sendTx:\n',
+        '# Wallet Manager Error on sendTx { Address:', this.address, '}\n',
         '\t' + func._method.name + '(' + func.arguments + ')\n',
         '\t' + error
       );
@@ -62,7 +62,7 @@ module.exports = class WalletManager {
     }
 
     this.busy = false;
-    console.log('# Wallet Manager/' + this.address + '/Complete:\n',
+    console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', gas.toString(), '}\n',
       '\t' + func._method.name + '(' + func.arguments + ')\n',
       '\ttxHash:', txHash.transactionHash);
 
