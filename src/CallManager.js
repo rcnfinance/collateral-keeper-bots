@@ -84,7 +84,6 @@ module.exports = class CallManager {
     try {
       call.response = await method.call();
     } catch (error) {
-      console.log(method._method.name, method.arguments);
       console.log('SendCall', error.message);
       call.response = error;
     }
@@ -98,7 +97,7 @@ module.exports = class CallManager {
       const resp = await process.contracts.multicall.methods.aggregate(multicallArg).call();
       this.translateResults(calls, resp.returnData);
     } catch (error) {
-      console.log('SendMultiCall', error.message);
+      console.log('SendMultiCall', error);
       for (let i = 0; i < calls.length; i++)
         this.multiCallsBuffer.push(calls[i]);
     }
