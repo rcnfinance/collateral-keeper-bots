@@ -12,6 +12,8 @@ module.exports = async () => {
   process.contracts = await require('./contracts.js')();
 
   process.walletManager = new WalletManager();
+  await process.walletManager.init();
+
   process.callManager = new CallManager();
 
   process.takeOn = process.configDefault.TAKE;

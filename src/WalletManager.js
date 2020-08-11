@@ -1,9 +1,15 @@
 const { bn, sleepThread } = require('./utils.js');
 
+const Status = {
+  FREE: 'free',
+  SENT: 'sent',
+  COMPLETE: 'complete',
+};
+
 module.exports = class WalletManager {
   constructor() {
+    this.nonces = [];
     this.initWallet();
-    this.busy = false;
   }
 
   initWallet() {
@@ -23,15 +29,39 @@ module.exports = class WalletManager {
     this.address = process.web3.eth.accounts.wallet[0].address;
   }
 
+  async init() {
+    // TODO: improve this, check the unconfirm txs
+    const lastNonce = await process.web3.eth.getTransactionCount(this.address);
+
+    this.nonces.push({
+      number: lastNonce,
+      status: Status.COMPLETE,
+    });
+  }
+
+  getNonce() {
+    let nonce = this.nonces.find(x => x.status === Status.FREE);
+
+    if (nonce)
+      return nonce;
+
+    nonce = {
+      number: ++ this.nonces[this.nonces.length - 1].number,
+      status: Status.SENT,
+    };
+
+    this.nonces.push(nonce);
+
+    return nonce;
+  }
+
   async sendTx(func) {
-    while (this.busy)
-      await sleepThread();
+    const nonce = this.getNonce();
 
-    this.busy = true;
-
-    const gas = await this.estimateGas(func);
+    const gas = await this.estimateGas(func, nonce);
 
     if (gas instanceof Error) {
+      nonce.status = Status.FREE;
       return gas;
     }
 
@@ -41,7 +71,7 @@ module.exports = class WalletManager {
       const gasPrice = await process.web3.eth.getGasPrice();
 
       console.log(
-        '# Wallet Manager Send { Address:', this.address, 'Gas:', gas.toString(), '}\n',
+        '# Wallet Manager { Address:', this.address, 'Gas:', gas.toString(), '} Send:\n',
         '\t' + func._method.name + '(' + func.arguments + ')'
       );
 
@@ -49,11 +79,12 @@ module.exports = class WalletManager {
         from: this.address,
         gasPrice,
         gas,
+        nonce: nonce.number,
       });
     } catch (error) {
-      this.busy = false;
+      nonce.status = Status.FREE;
       console.log(
-        '# Wallet Manager Error on sendTx { Address:', this.address, '}\n',
+        '# Wallet Manager/', this.address, '/Error on sendTx:\n',
         '\t' + func._method.name + '(' + func.arguments + ')\n',
         '\t' + error
       );
@@ -61,19 +92,21 @@ module.exports = class WalletManager {
       return error;
     }
 
-    this.busy = false;
-    console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', gas.toString(), '}\n',
+    nonce.status = Status.COMPLETE;
+
+    console.log('# Wallet Manager/' + this.address + '/Complete:\n',
       '\t' + func._method.name + '(' + func.arguments + ')\n',
       '\ttxHash:', txHash.transactionHash);
 
     return txHash;
   }
 
-  async estimateGas(func) {
+  async estimateGas(func, nonce) {
     try {
       const gas = await func.estimateGas({
         from: this.address,
         gas: (await process.web3.eth.getBlock('latest')).gasLimit,
+        nonce: nonce.number,
       });
 
       return bn(gas).mul(bn(12000)).div(bn(10000));
