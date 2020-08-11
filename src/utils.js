@@ -20,10 +20,15 @@ module.exports.bytes32 = (number) => {
 };
 
 module.exports.getBlock = async (number = 'latest') => {
-  try {
-    return await process.web3.eth.getBlock(number);
-  } catch (error) {
-    console.log('#Utils/getBLock/Error', '\n', error);
+  for (let block; ; await this.sleepThread()) {
+    try {
+      block = await process.web3.eth.getBlock(number);
+    } catch (error) {
+      console.log('#Utils/getBLock/Error', '\n', error.message);
+    }
+
+    if (block)
+      return block;
   }
 };
 

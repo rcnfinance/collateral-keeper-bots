@@ -58,13 +58,12 @@ module.exports = class Bot {
   }
 
   async waitNewBlock(lastCheckBlock) {
-    let lastBlock = await getBlock();
+    for (let lastBlock; ; await sleep(process.configDefault.AWAIT_GET_BLOCK)) {
+      lastBlock = await getBlock();
 
-    for (; lastCheckBlock.number == lastBlock.number; lastBlock = await getBlock()) {
-      await sleep(process.configDefault.AWAIT_GET_BLOCK);
+      if (lastCheckBlock.number != lastBlock.number)
+        return lastBlock;
     }
-
-    return lastBlock;
   }
 
   // Abstract functions
