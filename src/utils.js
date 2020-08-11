@@ -20,7 +20,7 @@ module.exports.bytes32 = (number) => {
 };
 
 module.exports.getBlock = async (number = 'latest') => {
-  for (let block; ; await this.sleepThread()) {
+  for (let block, i = 0; ; await this.sleep(++i * 100)) {
     try {
       block = await process.web3.eth.getBlock(number);
     } catch (error) {
