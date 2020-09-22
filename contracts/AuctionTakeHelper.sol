@@ -15,7 +15,7 @@ contract AuctionTakeHelper is Ownable {
 	IERC20 public baseToken;
 
 	IUniswapV2Router02 public router;
-	address public WETH;
+	IERC20 public WETH;
 
 	constructor(ICollateralAuction _collateralAuction, IUniswapV2Router02 _router) public {
 		collateralAuction = _collateralAuction;
@@ -36,16 +36,16 @@ contract AuctionTakeHelper is Ownable {
 		address[] memory path = new address[](2);
 		uint256[] memory amounts;
 
-		if (fromToken != IERC20(WETH)) {
+		if (fromToken != WETH) {
 			// Calculate amount get in WETH, converting fromToken to WETH
 			path[0] = address(fromToken);
-			path[1] = WETH;
+			path[1] = address(WETH);
 			amounts = router.getAmountsIn(amountGet, path);
 			amountGet = amounts[1];
 		}
 
-		// Calculate amount return in WETH, converting WETH to baseToken, to pay the action
-		path[0] = WETH;
+		// Calculate amount return in WETH, converting WETH to baseToken, to pay the auction
+		path[0] = address(WETH);
 		path[1] = address(baseToken);
 		amounts = router.getAmountsOut(amountReturn, path);
 		amountReturn = amounts[0];
@@ -54,13 +54,13 @@ contract AuctionTakeHelper is Ownable {
 	}
 
 	function take(uint256 _auctionId, bytes calldata _data, uint256 _profit) external {
-		uint256 prevWethBal = IERC20(WETH).balanceOf(address(this));
+		uint256 prevWethBal = WETH.balanceOf(address(this));
 
 		collateralAuction.take(_auctionId, _data, true);
 
 		uint256 expect = prevWethBal + _profit;
 		require(expect >= prevWethBal, "take: addition overflow");
-		require(IERC20(WETH).balanceOf(address(this)) >= expect, "take: dont get profit");
+		require(WETH.balanceOf(address(this)) >= expect, "take: dont get profit");
 	}
 
 	function onTake(IERC20 _fromToken, uint256 _amountGet, uint256 _amountReturn) external {
@@ -71,33 +71,32 @@ contract AuctionTakeHelper is Ownable {
 
 		address[] memory path = new address[](2);
 
-		if (address(_fromToken) != WETH) {
-			// Converting fromToken to WETH
-			path[0] = address(_fromToken);
-			path[1] = WETH;
-
+		if (_fromToken != WETH) {
 			_fromToken.approve(address(router), _amountGet);
 
-			router.swapExactTokensForTokens(
-				_amountGet,
-				0,
-				path,
-				address(this),
-				uint(-1)
-			);
+			// Converting fromToken to WETH
+			path[0] = address(_fromToken);
+			path[1] = address(WETH);
+			uint256[] memory amounts = router.swapExactTokensForTokens({
+				amountIn:     _amountGet,
+				amountOutMin: 0,
+				path: 				path,
+				to: 					address(this),
+				deadline: 		uint(-1)
+			});
+			_amountGet = amounts[1];
 		}
 
-		// Converting WETH to baseToken, to pay the action
-		path[0] = WETH;
+		// Converting WETH to baseToken, to pay the auction
+		path[0] = address(WETH);
 		path[1] = address(baseToken);
-
-		router.swapTokensForExactTokens(
-			_amountReturn,
-			uint(-1),
-			path,
-			address(this),
-			uint(-1)
-		);
+		router.swapTokensForExactTokens({
+			amountOut: 	 _amountReturn,
+			amountInMax: _amountGet,
+			path: 			 path,
+			to:				   address(this),
+			deadline: 	 uint(-1)
+		});
 	}
 
 	fallback() external payable { }
@@ -114,10 +113,11 @@ contract AuctionTakeHelper is Ownable {
 
 	function setRouter(IUniswapV2Router02 _router) public onlyOwner {
 		router = _router;
-		WETH = router.WETH();
+		WETH = IERC20(router.WETH());
 	}
 
 	function reApprove() public onlyOwner {
+		WETH.approve(address(router), uint(-1));
 		baseToken.approve(address(collateralAuction), uint(-1));
 	}
 }

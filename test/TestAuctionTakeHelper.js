@@ -70,6 +70,11 @@ contract('Test AuctionTakeHelper', function (accounts) {
 
     // Collateral auction mock
     auction = await TestCollateralAuction.new(baseToken.address);
+
+    await baseToken.setBalance(auction.address, toETH(1));
+    await testToken.setBalance(auction.address, toETH(1));
+    await weth.deposit({ from: owner, value: toETH(1) });
+    await weth.transfer(auction.address, toETH(1), { from: owner });
   });
   beforeEach(async function () {
     // Deploy Uniswap V2
@@ -77,9 +82,9 @@ contract('Test AuctionTakeHelper', function (accounts) {
     router = await UniswapV2Router.new(uniswapV2Factory.address, weth.address);
 
     // Add liquidity
-    await addLiquidity(testToken, baseToken, toETH(1000), toETH(1000));
-    await addLiquidityETH(baseToken, toETH(1), toETH(1000));
-    await addLiquidityETH(testToken, toETH(1), toETH(1000));
+    await addLiquidity(testToken, baseToken, toETH(1), toETH(1));
+    await addLiquidityETH(baseToken, toETH(1), toETH(1));
+    await addLiquidityETH(testToken, toETH(1), toETH(1));
 
     takeHelper = await AuctionTakeHelper.new(auction.address, router.address, { from: owner });
   });
@@ -103,13 +108,12 @@ contract('Test AuctionTakeHelper', function (accounts) {
     expect(await baseToken.allowance(takeHelper.address, auction.address)).to.eq.BN(maxUint);
   });
   it('Function withdrawERC20', async function () {
-    await testToken.setBalance(takeHelper.address, 1);
-
     const prevBal = await testToken.balanceOf(owner);
+    const takeHelperBal = await testToken.balanceOf(takeHelper.address);
 
     await takeHelper.withdrawERC20(testToken.address, { from: owner });
 
-    expect(await testToken.balanceOf(owner)).to.eq.BN(prevBal.add(bn(1)));
+    expect(await testToken.balanceOf(owner)).to.eq.BN(prevBal.add(takeHelperBal));
     expect(await testToken.balanceOf(takeHelper.address)).to.eq.BN(0);
   });
   it('Function setRouter', async function () {
@@ -201,18 +205,20 @@ contract('Test AuctionTakeHelper', function (accounts) {
       await takeHelper.take(0, [], 0);
 
       auction.setOffer(baseToken.address, 1, 1);
-      await baseToken.setBalance(auction.address, 1);
       await takeHelper.take(0, [], 0);
     });
     it('Try addition overflow', async function () {
-      await weth.deposit({ from: owner, value: 1 });
-      await weth.transfer(takeHelper.address, 1, { from: owner });
       const maxUint = bn(2).pow(bn(256)).sub(bn(1));
+      auction.setOffer(baseToken.address, 1, 1);
+      await weth.deposit({ from: owner, value: toETH(1) });
+      await weth.transfer(takeHelper.address, toETH(1), { from: owner });
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], maxUint, { from: owner }),
         'take: addition overflow'
       );
+
+      await takeHelper.withdrawERC20(weth.address, { from: owner });
     });
     it('1) Try take a auction and dont get profit in base token', async function () {
       auction.setOffer(baseToken.address, 0, 0);
@@ -223,7 +229,23 @@ contract('Test AuctionTakeHelper', function (accounts) {
     });
     it('2) Try take a auction and dont get profit in base token', async function () {
       auction.setOffer(baseToken.address, 1, 1);
-      await baseToken.setBalance(auction.address, 1);
+
+      await tryCatchRevert(
+        () => takeHelper.take(0, [], 1, { from: owner }),
+        'take: dont get profit'
+      );
+    });
+    it('Try take a auction and dont get profit in weth token', async function () {
+      auction.setOffer(weth.address, 2, 1);
+
+      await tryCatchRevert(
+        () => takeHelper.take(0, [], 1, { from: owner }),
+        'take: dont get profit'
+      );
+    });
+    it('1) Try take a auction and dont get profit in test token', async function () {
+      auction.setOffer(testToken.address, 3, 1);
+
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
         'take: dont get profit'
