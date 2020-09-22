@@ -36,11 +36,13 @@ contract AuctionTakeHelper is Ownable {
 		address[] memory path = new address[](2);
 		uint256[] memory amounts;
 
-		// Calculate amount get in WETH, converting fromToken to WETH
-		path[0] = address(fromToken);
-		path[1] = WETH;
-		amounts = router.getAmountsIn(amountGet, path);
-		amountGet = amounts[1];
+		if (fromToken != IERC20(WETH)) {
+			// Calculate amount get in WETH, converting fromToken to WETH
+			path[0] = address(fromToken);
+			path[1] = WETH;
+			amounts = router.getAmountsIn(amountGet, path);
+			amountGet = amounts[1];
+		}
 
 		// Calculate amount return in WETH, converting WETH to baseToken, to pay the action
 		path[0] = WETH;

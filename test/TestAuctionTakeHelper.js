@@ -170,7 +170,18 @@ contract('Test AuctionTakeHelper', function (accounts) {
     });
     it('Should get profit', async function () {
       auction.setOffer(testToken.address, 2000, 1000);
-      expect(await takeHelper.getProfitAmount(0)).to.eq.BN(1000 );
+      expect(await takeHelper.getProfitAmount(0)).to.eq.BN(1000);
+    });
+    it('Should not get profit in weth', async function () {
+      auction.setOffer(weth.address, 1000, 1000);
+      expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
+
+      auction.setOffer(weth.address, 1000, 2000);
+      expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
+    });
+    it('Should get profit in weth', async function () {
+      auction.setOffer(weth.address, 2000, 1000);
+      expect(await takeHelper.getProfitAmount(0)).to.eq.BN(1000);
     });
   });
   describe('Function take, onTake', function () {
