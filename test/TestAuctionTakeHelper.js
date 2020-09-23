@@ -162,29 +162,36 @@ contract('Test AuctionTakeHelper', function (accounts) {
   });
   describe('Function getProfitAmount', function () {
     it('Should return 0 if the from token is base token', async function () {
-      auction.setOffer(baseToken.address, 1, 1);
+      auction.setSelling(baseToken.address, 1);
+      auction.setRequesting(1);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
     });
     it('Should not get profit', async function () {
-      auction.setOffer(testToken.address, 1000, 1000);
+      auction.setSelling(testToken.address, 1000);
+      auction.setRequesting(1000);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
 
-      auction.setOffer(testToken.address, 1000, 2000);
+      auction.setSelling(testToken.address, 1000);
+      auction.setRequesting(2000);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
     });
     it('Should get profit', async function () {
-      auction.setOffer(testToken.address, 2000, 1000);
+      auction.setSelling(testToken.address, 2000);
+      auction.setRequesting(1000);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(1000);
     });
     it('Should not get profit in weth', async function () {
-      auction.setOffer(weth.address, 1000, 1000);
+      auction.setSelling(weth.address, 1000);
+      auction.setRequesting(1000);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
 
-      auction.setOffer(weth.address, 1000, 2000);
+      auction.setSelling(weth.address, 1000);
+      auction.setRequesting(2000);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(0);
     });
     it('Should get profit in weth', async function () {
-      auction.setOffer(weth.address, 2000, 1000);
+      auction.setSelling(weth.address, 2000);
+      auction.setRequesting(1000);
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(1000);
     });
   });
@@ -201,15 +208,18 @@ contract('Test AuctionTakeHelper', function (accounts) {
       );
     });
     it('Should take the auction in base token', async function () {
-      auction.setOffer(baseToken.address, 0, 0);
+      auction.setSelling(baseToken.address, 0);
+      auction.setRequesting(0);
       await takeHelper.take(0, [], 0);
 
-      auction.setOffer(baseToken.address, 1, 1);
+      auction.setSelling(baseToken.address, 1);
+      auction.setRequesting(1);
       await takeHelper.take(0, [], 0);
     });
     it('Try addition overflow', async function () {
       const maxUint = bn(2).pow(bn(256)).sub(bn(1));
-      auction.setOffer(baseToken.address, 1, 1);
+      auction.setSelling(baseToken.address, 1);
+      auction.setRequesting(1);
       await weth.deposit({ from: owner, value: toETH(1) });
       await weth.transfer(takeHelper.address, toETH(1), { from: owner });
 
@@ -221,14 +231,16 @@ contract('Test AuctionTakeHelper', function (accounts) {
       await takeHelper.withdrawERC20(weth.address, { from: owner });
     });
     it('1) Try take a auction and dont get profit in base token', async function () {
-      auction.setOffer(baseToken.address, 0, 0);
+      auction.setSelling(baseToken.address, 0);
+      auction.setRequesting(0);
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
         'take: dont get profit'
       );
     });
     it('2) Try take a auction and dont get profit in base token', async function () {
-      auction.setOffer(baseToken.address, 1, 1);
+      auction.setSelling(baseToken.address, 1);
+      auction.setRequesting(1);
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
@@ -236,7 +248,8 @@ contract('Test AuctionTakeHelper', function (accounts) {
       );
     });
     it('Try take a auction and dont get profit in weth token', async function () {
-      auction.setOffer(weth.address, 2, 1);
+      auction.setSelling(weth.address, 2);
+      auction.setRequesting(1);
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
@@ -244,7 +257,8 @@ contract('Test AuctionTakeHelper', function (accounts) {
       );
     });
     it('1) Try take a auction and dont get profit in test token', async function () {
-      auction.setOffer(testToken.address, 3, 1);
+      auction.setSelling(testToken.address, 3);
+      auction.setRequesting(1);
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),

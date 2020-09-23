@@ -3,6 +3,11 @@ pragma solidity ^0.6.1;
 import "../interfaces/IERC20.sol";
 
 
+interface Taker{
+    function onTake(address, uint256, uint256) external;
+}
+
+
 contract TestCollateralAuction {
     IERC20 public baseToken;
     IERC20 public fromToken;
@@ -32,8 +37,7 @@ contract TestCollateralAuction {
         require(fromToken.transfer(msg.sender, selling), "take: error sending tokens");
 
         if (_callback) {
-            (bool success, ) = msg.sender.call(abi.encodeWithSignature("onTake(address,uint256,uint256)", fromToken, selling, requesting));
-            require(success, "take: error during callback onTake()");
+            Taker(msg.sender).onTake(address(fromToken), selling, requesting);
         }
 
         require(baseToken.transferFrom(msg.sender, address(this), requesting), "take: error pulling tokens");
@@ -43,9 +47,12 @@ contract TestCollateralAuction {
         return (selling, requesting);
     }
 
-    function setOffer(IERC20 _fromToken, uint256 _selling, uint256 _requesting) external {
+    function setSelling(IERC20 _fromToken, uint256 _selling) external {
         fromToken = _fromToken;
         selling = _selling;
+    }
+
+    function setRequesting(uint256 _requesting) external {
         requesting = _requesting;
     }
 }
