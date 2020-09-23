@@ -195,7 +195,36 @@ contract('Test AuctionTakeHelper', function (accounts) {
       expect(await takeHelper.getProfitAmount(0)).to.eq.BN(1000);
     });
   });
-  describe('Function take, onTake', function () {
+  describe('Wins function take', function () {
+    it('Should take the auction in base token', async function () {
+      auction.setSelling(baseToken.address, 0);
+      auction.setRequesting(0);
+      await takeHelper.take(0, [], 0);
+
+      auction.setSelling(baseToken.address, 1);
+      auction.setRequesting(1);
+      await takeHelper.take(0, [], 0);
+    });
+    it('Should take the auction in weth token', async function () {
+      const prevBal = await weth.balanceOf(takeHelper.address);
+
+      auction.setSelling(weth.address, 101);
+      auction.setRequesting(100);
+      await takeHelper.take(0, [], 0);
+
+      expect(await weth.balanceOf(takeHelper.address)).to.eq.BN(prevBal);
+    });
+    it('Should take the auction in test token', async function () {
+      const prevBal = await testToken.balanceOf(takeHelper.address);
+
+      auction.setSelling(testToken.address, 102);
+      auction.setRequesting(100);
+      await takeHelper.take(0, [], 0);
+
+      expect(await testToken.balanceOf(takeHelper.address)).to.eq.BN(prevBal);
+    });
+  });
+  describe('Fails function take', function () {
     it('Try hack', async function () {
       await tryCatchRevert(
         () => takeHelper.onTake(
@@ -206,15 +235,6 @@ contract('Test AuctionTakeHelper', function (accounts) {
         ),
         'onTake: The sender should be the collateralAuction'
       );
-    });
-    it('Should take the auction in base token', async function () {
-      auction.setSelling(baseToken.address, 0);
-      auction.setRequesting(0);
-      await takeHelper.take(0, [], 0);
-
-      auction.setSelling(baseToken.address, 1);
-      auction.setRequesting(1);
-      await takeHelper.take(0, [], 0);
     });
     it('Try addition overflow', async function () {
       const maxUint = bn(2).pow(bn(256)).sub(bn(1));
