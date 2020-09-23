@@ -2,6 +2,7 @@ pragma solidity ^0.6.1;
 
 import "./interfaces/ICollateralAuction.sol";
 import "./interfaces/IERC20.sol";
+import "./test/WETH9.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 
 import "./utils/Ownable.sol";
@@ -54,13 +55,15 @@ contract AuctionTakeHelper is Ownable {
 	}
 
 	function take(uint256 _auctionId, bytes calldata _data, uint256 _profit) external {
-		uint256 prevWethBal = WETH.balanceOf(address(this));
-
 		collateralAuction.take(_auctionId, _data, true);
 
-		uint256 expect = prevWethBal + _profit;
-		require(expect >= prevWethBal, "take: addition overflow");
-		require(WETH.balanceOf(address(this)) >= expect, "take: dont get profit");
+		uint256 wethBal = WETH.balanceOf(address(this));
+		require(wethBal >= _profit, "take: dont get profit");
+
+		if (wethBal != 0) {
+			WETH9(payable(address(WETH))).withdraw(wethBal);
+			payable(_owner).transfer(wethBal);
+		}
 	}
 
 	function onTake(IERC20 _fromToken, uint256 _amountGet, uint256 _amountReturn) external {

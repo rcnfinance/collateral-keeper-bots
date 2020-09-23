@@ -206,22 +206,48 @@ contract('Test AuctionTakeHelper', function (accounts) {
       await takeHelper.take(0, [], 0);
     });
     it('Should take the auction in weth token', async function () {
-      const prevBal = await weth.balanceOf(takeHelper.address);
+      const prevBal = await web3.eth.getBalance(owner);
 
       auction.setSelling(weth.address, 101);
       auction.setRequesting(100);
       await takeHelper.take(0, [], 0);
 
-      expect(await weth.balanceOf(takeHelper.address)).to.eq.BN(prevBal);
+      expect(await weth.balanceOf(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(owner)).to.eq.BN(prevBal);
+    });
+    it('Should take the auction in weth token', async function () {
+      const prevBal = bn(await web3.eth.getBalance(owner));
+
+      auction.setSelling(weth.address, 1000);
+      auction.setRequesting(100);
+      await takeHelper.take(0, [], 0);
+
+      expect(await weth.balanceOf(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(owner)).to.eq.BN(prevBal.add(bn(899)));
     });
     it('Should take the auction in test token', async function () {
-      const prevBal = await testToken.balanceOf(takeHelper.address);
+      const prevBal = await web3.eth.getBalance(owner);
 
       auction.setSelling(testToken.address, 102);
       auction.setRequesting(100);
       await takeHelper.take(0, [], 0);
 
-      expect(await testToken.balanceOf(takeHelper.address)).to.eq.BN(prevBal);
+      expect(await testToken.balanceOf(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(owner)).to.eq.BN(prevBal);
+    });
+    it('Should take the auction in test token', async function () {
+      const prevBal = bn(await web3.eth.getBalance(owner));
+
+      auction.setSelling(testToken.address, 1000);
+      auction.setRequesting(100);
+      await takeHelper.take(0, [], 0);
+
+      expect(await testToken.balanceOf(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(takeHelper.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(owner)).to.eq.BN(prevBal.add(bn(895)));
     });
   });
   describe('Fails function take', function () {
@@ -235,20 +261,6 @@ contract('Test AuctionTakeHelper', function (accounts) {
         ),
         'onTake: The sender should be the collateralAuction'
       );
-    });
-    it('Try addition overflow', async function () {
-      const maxUint = bn(2).pow(bn(256)).sub(bn(1));
-      auction.setSelling(baseToken.address, 1);
-      auction.setRequesting(1);
-      await weth.deposit({ from: owner, value: toETH(1) });
-      await weth.transfer(takeHelper.address, toETH(1), { from: owner });
-
-      await tryCatchRevert(
-        () => takeHelper.take(0, [], maxUint, { from: owner }),
-        'take: addition overflow'
-      );
-
-      await takeHelper.withdrawERC20(weth.address, { from: owner });
     });
     it('1) Try take a auction and dont get profit in base token', async function () {
       auction.setSelling(baseToken.address, 0);
