@@ -6,6 +6,11 @@ module.exports = async () => {
     process.configDefault.MULTICALL_ADDRESS
   );
 
+  contracts.auctionTakeHelper = await new process.web3.eth.Contract(
+    require('./abis/AuctionTakeHelperAbi.json'),
+    process.configDefault.AUCTION_TAKER_HELPER
+  );
+
   contracts.collateral = await new process.web3.eth.Contract(
     require('./abis/collateralAbi.json'),
     process.configDefault.COLLATERAL_ADDRESS
