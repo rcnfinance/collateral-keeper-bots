@@ -23,33 +23,36 @@ module.exports = class WalletManager {
     this.address = process.web3.eth.accounts.wallet[0].address;
   }
 
-  async sendTx(func) {
+  async sendTx(func, txObj = { gas: undefined, gasPrice: undefined, value: 0 }) {
     while (this.busy)
       await sleepThread();
 
     this.busy = true;
 
-    const gas = await this.estimateGas(func);
+    if (!txObj.gas)
+      txObj.gas = await this.estimateGas(func);
 
-    if (gas instanceof Error) {
+    if (txObj.gas instanceof Error) {
       this.busy = false;
-      return gas;
+      return txObj.gas;
     }
 
     let txHash;
 
     try {
-      const gasPrice = await process.web3.eth.getGasPrice();
+      if (!txObj.gasPrice)
+        txObj.gasPrice = await process.web3.eth.getGasPrice();
 
       console.log(
-        '# Wallet Manager Send { Address:', this.address, 'Gas:', gas.toString(), '}\n',
+        '# Wallet Manager Send { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
         '\t' + func._method.name + '(' + func.arguments + ')'
       );
 
       txHash = await func.send({
         from: this.address,
-        gasPrice,
-        gas,
+        gasPrice: txObj.gasPrice,
+        gas: txObj.gas,
+        value : txObj.value,
       });
     } catch (error) {
       this.busy = false;
@@ -63,7 +66,7 @@ module.exports = class WalletManager {
     }
 
     this.busy = false;
-    console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', gas.toString(), '}\n',
+    console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
       '\t' + func._method.name + '(' + func.arguments + ')\n',
       '\ttxHash:', txHash.transactionHash);
 

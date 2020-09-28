@@ -1,9 +1,10 @@
 const Bot = require('./Bot.js');
 const api = require('../api.js');
-const { convertToken, getOracleData, bn } = require('../utils.js');
+const { getOracleData, bn } = require('../utils.js');
 
 let auctionMethods;
 let collMethods;
+let takeMethods;
 let callManager;
 
 module.exports = class Taker extends Bot {
@@ -12,6 +13,7 @@ module.exports = class Taker extends Bot {
 
     auctionMethods = process.contracts.auction.methods;
     collMethods = process.contracts.collateral.methods;
+    takeMethods = process.contracts.auctionTakeHelper.methods;
     callManager = process.callManager;
   }
 
@@ -33,51 +35,73 @@ module.exports = class Taker extends Bot {
     return {
       id,
       auction,
-      entry,
       debtOracle: debt.oracle,
     };
   }
 
   async isAlive(element) {
+    if (element.diedReason)
+      return;
+
     element.auction = await callManager.multiCall(auctionMethods.auctions(element.id));
 
-    if (element.auction && element.auction.amount != 0)
-      return { alive: true };
-    else
-      return { alive: false, reason: 'The auction was bougth or not exists' };
+    if (element.auction && element.auction.amount != 0) {
+      if (element.auction.fromToken == this.baseToken && !process.configDefault.SUBSIDEZE_TAKE) {
+        element.diedReason = 'The auction was now subsideze';
+      }
+    } else {
+      element.diedReason = 'The auction was bougth or not exists';
+    }
   }
 
   async canSendTx(element) {
     try {
-      if (element.auction.fromToken == this.baseToken && process.configDefault.SUBSIDEZE_TAKE) {
-        const offer = await callManager.multiCall(auctionMethods.offer(element.id));
+      const a = await takeMethods.getProfitAmount(element.id).call();
+      console.log(a.toString());
 
-        return bn(offer.requesting).eq(bn(offer.selling));
+      const debtOracleData = await getOracleData(element.debtOracle);
+      element.method = {
+        func: takeMethods.take(
+          element.id,     // Auction id, in uint256
+          debtOracleData, // Oracle data of the debt
+          0               // Amount what should be win in weth
+        )
+      };
+
+      element.method.gas = await process.walletManager.estimateGas(element.method.func);
+      element.method.gasPrice = await process.web3.eth.getGasPrice();
+
+      if (element.auction.fromToken == this.baseToken) {
+        // The fromToken is in baseToken
+        return process.configDefault.SUBSIDEZE_TAKE;
+      } else {
+        // Calc profit in weth
+        //const profit = bn(element.method.gasPrice).mul(bn(element.method.gas)).add(bn(process.configDefault.AUCTION_TAKER_PROFIT)); // 0.035 ETH
+        element.method.func.arguments[2] = 0;
+
+        element.method.gas = await process.walletManager.estimateGas(element.method.func);
+
+        if (element.method.gas instanceof Error)
+          return false;
+
+        return true;
       }
-
-      const offer = await callManager.multiCall(auctionMethods.offer(element.id));
-      // In Base token
-      const sendValue = bn(offer.requesting);
-      const getValue = await convertToken(element.entry.oracle, offer.selling);
-
-      return sendValue.lt(getValue);
     } catch (error) {
       api.reportError(element, 'canSendTx', error);
+      console.log(error);
       return false;
     }
   }
 
   async sendTx(element) {
-    const debtOracleData = await getOracleData(element.debtOracle);
-
-    await api.report('Auctions', 'Send Claim',element);
+    await api.report('Auctions', 'Send Claim', element);
 
     const tx = await process.walletManager.sendTx(
-      process.contracts.auction.methods.take(
-        element.id,     // Auction id, in uint256
-        debtOracleData, // Oracle data of the debt
-        false           // If the auction contract, call the "onTake(uint256,uint256)" function
-      )
+      element.method.func,
+      {
+        gas: element.method.gas,
+        gasPrice: element.method.gasPrice,
+      }
     );
 
     element.tx = tx;
@@ -90,6 +114,10 @@ module.exports = class Taker extends Bot {
 
   elementsAliveLog() {
     console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
+
+    const auctionsOnError = this.elementsDiedReasons.filter(e => e.reason !== 'The auction was bougth or not exists');
+    if (auctionsOnError.length)
+      console.log('\tAuctions on error:', auctionsOnError);
   }
 
   async reportNewElement(element) {

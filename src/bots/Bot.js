@@ -4,6 +4,7 @@ const api = require('../api.js');
 module.exports = class Bot {
   constructor() {
     this.totalAliveElement = 0;
+    this.elementsDiedReasons = [];
   }
 
   async process() {
@@ -17,8 +18,7 @@ module.exports = class Bot {
           this.processElement(i);
       }
 
-      if (elementLength != prevElementLength)
-        this.elementsAliveLog();
+      this.elementsAliveLog();
 
       api.report('lastProcessBlock', '', this.lastProcessBlock);
 
@@ -34,9 +34,9 @@ module.exports = class Bot {
     const element = await this.createElement(bytes32(elementId));
     await this.reportNewElement(element);
 
-    let resp = await this.isAlive(element);
+    await this.isAlive(element);
 
-    while (resp.alive) {
+    while (!element.diedReason) {
       if (await this.canSendTx(element))
         await this.sendTx(element);
 
@@ -46,13 +46,11 @@ module.exports = class Bot {
         await sleepThread()
       );
 
-      resp = await this.isAlive(element);
+      await this.isAlive(element);
     }
 
-    if (element)
-      element.reason = resp.reason;
-
     await this.reportEndElement(element);
+    this.elementsDiedReasons.push({ id: element.id, reason: element.diedReason });
 
     this.totalAliveElement--;
   }

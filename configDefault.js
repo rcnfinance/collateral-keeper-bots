@@ -4,6 +4,7 @@ const defaultConfig = {
   // CallManager
   AWAIT_CALL: 1000,
   MAX_CALLS: 50,
+  AUCTION_TAKER_PROFIT: '35000000000000000', // 0.035 ETH
 };
 
 module.exports = () => {
@@ -11,6 +12,7 @@ module.exports = () => {
     URL_NODE_ETHEREUM: process.env.URL_NODE_ETHEREUM,
     COLLATERAL_ADDRESS: process.env.COLLATERAL_ADDRESS,
     MULTICALL_ADDRESS: process.env.MULTICALL_ADDRESS,
+    AUCTION_TAKER_HELPER: process.env.AUCTION_TAKER_HELPER,
     BOT_PK: process.env.BOT_PK,
     URL_INFLUX: process.env.URL_INFLUX,
   };

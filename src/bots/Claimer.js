@@ -28,23 +28,28 @@ module.exports = class Claimer extends Bot {
     return {
       id,
       entry,
-      debtOracle: debt.oracle
+      debtOracle: debt.oracle,
+      diedReason: undefined,
     };
   }
 
   async isAlive(element) {
+    if (element.diedReason)
+      return;
+
     element.entry = await callManager.multiCall(collMethods.entries(element.id));
-    if (!element.entry) // If the entry was deleted
-      return 'The entry was deleted or not exist';
+    if (!element.entry) { // If the entry was deleted
+      element.diedReason = 'The entry was deleted or not exist';
+      return;
+    }
 
     const status = await callManager.multiCall(loanManagerMethods.getStatus(element.entry.debtId));
 
-    if (status instanceof Error)
-      return { alive: false, reason: 'Error on call: getStatus()'};
-    else if (status !== PAID_DEBT_STATUS)
-      return { alive: true };
-    else
-      return { alive: false, reason: 'The debt of the entry was paid' };
+    if (status instanceof Error) {
+      element.diedReason = 'Error on call: getStatus()';
+    } else if (status === PAID_DEBT_STATUS) {
+      element.diedReason = 'The debt of the entry was paid';
+    }
   }
 
   async canSendTx(element) {
@@ -79,11 +84,15 @@ module.exports = class Claimer extends Bot {
 
     if (tx instanceof Error) {
       this.reportError( element, 'sendTx', tx);
+      element.diedReason = 'Error on send the tx';
     }
   }
 
   elementsAliveLog() {
     console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
+    const entriesOnError = this.elementsDiedReasons.filter(e => e.reason !== 'The debt of the entry was paid');
+    if (entriesOnError.length)
+      console.log('\tEntries on error:', entriesOnError.map(e => e.id));
   }
 
   async reportNewElement(element) {
