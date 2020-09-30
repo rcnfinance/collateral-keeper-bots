@@ -28,6 +28,8 @@ module.exports = () => {
   config.AWAIT_CALL = toInt(process.env.AWAIT_CALL, defaultConfig.AWAIT_CALL);
   config.MAX_CALLS = toInt(process.env.MAX_CALLS, defaultConfig.MAX_CALLS);
 
+  config.AUCTION_TAKER_PROFIT = toInt(process.env.AUCTION_TAKER_PROFIT, defaultConfig.AUCTION_TAKER_PROFIT);
+
   return config;
 };
 
