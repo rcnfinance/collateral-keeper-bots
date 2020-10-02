@@ -56,9 +56,6 @@ module.exports = class Taker extends Bot {
 
   async canSendTx(element) {
     try {
-      const a = await takeMethods.getProfitAmount(element.id).call();
-      console.log(a.toString());
-
       const debtOracleData = await getOracleData(element.debtOracle);
       element.method = {
         func: takeMethods.take(
