@@ -18,8 +18,11 @@ module.exports = () => {
   };
 
   config.TAKE = toBool(process.env.TAKE);
+
   config.CLAIM = toBool(process.env.CLAIM);
-  config.SUBSIDEZE_TAKE = toBool(process.env.SUBSIDEZE_TAKE);
+  config.SUBSIDEZE_TAKE_IN_BASETOKEN = toBool(process.env.SUBSIDEZE_TAKE_IN_BASETOKEN);
+  config.SUBSIDEZE_TX_TAKE = toBool(process.env.SUBSIDEZE_TX_TAKE);
+  config.AUCTION_TAKER_PROFIT = toInt(process.env.AUCTION_TAKER_PROFIT, defaultConfig.AUCTION_TAKER_PROFIT);
 
   config.AWAIT_THREAD = toInt(process.env.AWAIT_THREAD, defaultConfig.AWAIT_THREAD);
   config.AWAIT_GET_BLOCK = toInt(process.env.AWAIT_GET_BLOCK, defaultConfig.AWAIT_GET_BLOCK);
@@ -27,8 +30,6 @@ module.exports = () => {
   // CallManager
   config.AWAIT_CALL = toInt(process.env.AWAIT_CALL, defaultConfig.AWAIT_CALL);
   config.MAX_CALLS = toInt(process.env.MAX_CALLS, defaultConfig.MAX_CALLS);
-
-  config.AUCTION_TAKER_PROFIT = toInt(process.env.AUCTION_TAKER_PROFIT, defaultConfig.AUCTION_TAKER_PROFIT);
 
   return config;
 };

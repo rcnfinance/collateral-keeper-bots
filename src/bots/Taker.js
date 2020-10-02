@@ -46,7 +46,7 @@ module.exports = class Taker extends Bot {
     element.auction = await callManager.multiCall(auctionMethods.auctions(element.id));
 
     if (element.auction && element.auction.amount != 0) {
-      if (element.auction.fromToken == this.baseToken && !process.configDefault.SUBSIDEZE_TAKE) {
+      if (element.auction.fromToken == this.baseToken && !process.configDefault.SUBSIDEZE_TAKE_IN_BASETOKEN) {
         element.diedReason = 'The auction was now subsideze';
       }
     } else {
@@ -73,11 +73,14 @@ module.exports = class Taker extends Bot {
 
       if (element.auction.fromToken == this.baseToken) {
         // The fromToken is in baseToken
-        return process.configDefault.SUBSIDEZE_TAKE;
+        return process.configDefault.SUBSIDEZE_TAKE_IN_BASETOKEN;
       } else {
         // Calc profit in weth
-        //const profit = bn(element.method.gasPrice).mul(bn(element.method.gas)).add(bn(process.configDefault.AUCTION_TAKER_PROFIT)); // 0.035 ETH
-        element.method.func.arguments[2] = 0;
+        element.method.func.arguments[2] = bn(process.configDefault.AUCTION_TAKER_PROFIT);
+        if (!process.configDefault.SUBSIDEZE_TX_TAKE) {
+          const profit = bn(element.method.gasPrice).mul(bn(element.method.gas));
+          element.method.func.arguments[2] = element.method.func.arguments[2].add(profit);
+        }
 
         element.method.gas = await process.walletManager.estimateGas(element.method.func);
 

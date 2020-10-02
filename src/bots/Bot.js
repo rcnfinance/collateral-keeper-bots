@@ -18,7 +18,8 @@ module.exports = class Bot {
           this.processElement(i);
       }
 
-      this.elementsAliveLog();
+      if (elementLength != prevElementLength)
+        this.elementsAliveLog();
 
       api.report('lastProcessBlock', '', this.lastProcessBlock);
 
