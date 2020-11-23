@@ -1,90 +1,92 @@
-const { bn, sleep } = require('./utils/utils.js');
+const { bn, sleepThread } = require('./utils.js');
 
 module.exports = class WalletManager {
-  constructor(pks) {
-    this.addresses = [];
-    this.initWallets(pks);
+  constructor() {
+    this.initWallet();
+    this.busy = false;
   }
 
-  initWallets(pks) {
-    for (let i = 0; i < pks.length; i++) {
-      const pk = pks[i];
+  initWallet() {
+    const pk = process.configDefault.BOT_PK;
 
-      if (pk.slice(0, 2) !== '0x')
-        throw new Error('##Wallet Manager/Wrong format: ' + pk + ', use a hex bytes32 number(with 0x on the beginning)');
+    if (pk.slice(0, 2) !== '0x')
+      throw new Error('Wallet Manager/ Wrong format: \n' + pk + ', use a hex bytes32 number(with 0x on the beginning)');
 
-      if (process.w3.utils.isHexStrict(pk.slice(2)))
-        throw new Error('##Wallet Manager/There are no private keys to instance the signers: ' + pk);
+    if (process.web3.utils.isHexStrict(pk.slice(2)))
+      throw new Error('Wallet Manager/ There are no private keys to instance the signers: ' + pk);
 
-      const wallet = process.w3.eth.accounts.privateKeyToAccount(pk);
-      process.w3.eth.accounts.wallet.add(wallet);
+    const wallet = process.web3.eth.accounts.privateKeyToAccount(pk);
+    process.web3.eth.accounts.wallet.add(wallet);
 
-      this.push(wallet.address);
+    console.log('# Wallet:', wallet.address);
+
+    this.address = process.web3.eth.accounts.wallet[0].address;
+  }
+
+  async sendTx(func, txObj = { gas: undefined, gasPrice: undefined, value: 0 }) {
+    while (this.busy)
+      await sleepThread();
+
+    this.busy = true;
+
+    if (!txObj.gas)
+      txObj.gas = await this.estimateGas(func);
+
+    if (txObj.gas instanceof Error) {
+      this.busy = false;
+      return txObj.gas;
     }
-  }
 
-  async pop() {
-    while (!this.addresses.length) {
-      console.log('##Wallet Manager/Wait for an available wallet');
-      await sleep(2000);
+    let txHash;
+
+    try {
+      if (!txObj.gasPrice)
+        txObj.gasPrice = await process.web3.eth.getGasPrice();
+
+      console.log(
+        '# Wallet Manager Send { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
+        '\t' + func._method.name + '(' + func.arguments + ')'
+      );
+
+      txHash = await func.send({
+        from: this.address,
+        gasPrice: txObj.gasPrice,
+        gas: txObj.gas,
+        value : txObj.value,
+      });
+    } catch (error) {
+      this.busy = false;
+      console.log(
+        '# Wallet Manager Error on sendTx { Address:', this.address, '}\n',
+        '\t' + func._method.name + '(' + func.arguments + ')\n',
+        '\t' + error
+      );
+
+      return error;
     }
 
-    // TODO: whats happends if the wallet dont have eth balance?
-
-    return this.addresses.pop();
-  }
-
-  push(address) {
-    return this.addresses.push(address);
-  }
-
-  async sendTx(func, objTx = { address: undefined, value: undefined, gasPrice: undefined, }) {
-    if(!objTx.address)
-      objTx.address = await this.pop();
-
-    objTx.value = objTx.value ? objTx.value : 0;
-
-    const gas = await this.estimateGas(func, objTx);
-    if (gas instanceof Error) return gas;
-
-    if(!objTx.gasPrice)
-      objTx.gasPrice = await process.w3.eth.getGasPrice();
-
-    const txHash = await func.send(
-      {
-        from: objTx.address,
-        gasPrice: objTx.gasPrice,
-        gas: gas,
-        value: objTx.value,
-      },
-      (error, txHash) => {
-        if (error) {
-          return error;
-        }
-        console.log('##Wallet Manager/Tx Hash: ' + txHash + ', ' + func._method.name + '(' + func.arguments + ')');
-      }
-    );
-
-    this.push(objTx.address);
+    this.busy = false;
+    console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
+      '\t' + func._method.name + '(' + func.arguments + ')\n',
+      '\ttxHash:', txHash.transactionHash);
 
     return txHash;
   }
 
-  async estimateGas(func, objTx) {
-    let gas;
-
+  async estimateGas(func) {
     try {
-      const gasLimit = (await process.w3.eth.getBlock('latest')).gasLimit;
-
-      gas = await func.estimateGas({
-        from: objTx.address,
-        gas: gasLimit,
-        value: objTx.value,
+      const gas = await func.estimateGas({
+        from: this.address,
+        gas: (await process.web3.eth.getBlock('latest')).gasLimit,
       });
+
+      return bn(gas).mul(bn(12000)).div(bn(10000));
     } catch (error) {
-      console.log(error);
+      console.log(
+        '# Wallet Manager/', this.address, '/Error on estimateGas:\n',
+        '\t' + func._method.name + '(' + func.arguments + ')\n',
+        '\t' + error);
       return error;
     }
-    return bn(gas).mul(bn(12000)).div(bn(10000));
   }
 };

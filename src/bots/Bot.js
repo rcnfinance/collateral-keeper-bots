@@ -1,62 +1,109 @@
-const { sleep, STATE, bytes32 } = require('../utils/utils.js');
+const { sleepThread, sleep, bytes32, getBlock } = require('../utils.js');
+const api = require('../api.js');
 
 module.exports = class Bot {
   constructor() {
-    this.elements = [];
+    this.totalAliveElement = 0;
+    this.elementsDiedReasons = [];
   }
 
-  async process () {
-    for (;;) {
+  async process() {
+    this.lastProcessBlock = await getBlock();
+
+    for (let prevElementLength = 1;;) {
       const elementLength = await this.elementsLength();
-      this.elementsLog(elementLength);
 
-      for (let i = 1; i < elementLength; i++) {
-        const localElement = this.elements[bytes32(i)];
-
-        if (!localElement) { // Add the element if not exists
-          await this.addElement(bytes32(i));
-          continue;
-        }
-
-        if (localElement.state == STATE.error) {
-          if (localElement.errorCount >= 1) {
-            localElement.errorCount--;
-            continue;
-          } else {
-            localElement.state = STATE.onGoing;
-          }
-        }
-
-        if (await this.canSendTx(localElement) && localElement.state === STATE.onGoing) {
-          this.sendTx(localElement);
-        }
+      if(elementLength != prevElementLength) {
+        for (let i = prevElementLength; i < elementLength; i++)
+          this.processElement(i);
       }
 
-      await sleep(5000);
+      if (elementLength != prevElementLength)
+        this.elementsAliveLog();
+
+      api.report('lastProcessBlock', '', this.lastProcessBlock);
+
+      this.lastProcessBlock = await this.waitNewBlock(this.lastProcessBlock);
+
+      prevElementLength = elementLength;
     }
   }
 
-  async addElement(elementId) {
-    const element = await this.createElement(elementId);
-    element.state = STATE.onGoing;
-    element.waitOnError = 0;
-    element.errorCount = 1;
+  async processElement(elementId) {
+    this.totalAliveElement++;
 
-    this.elements[elementId] = element;
+    const element = await this.createElement(bytes32(elementId));
+    await this.reportNewElement(element);
+
+    await this.isAlive(element);
+
+    while (!element.diedReason) {
+      if (await this.canSendTx(element))
+        await this.sendTx(element);
+
+      for ( // Wait for new block
+        let lastProcessBlock = this.lastProcessBlock;
+        lastProcessBlock.number == this.lastProcessBlock.number;
+        await sleepThread()
+      );
+
+      await this.isAlive(element);
+    }
+
+    await this.reportEndElement(element);
+    this.elementsDiedReasons.push({ id: element.id, reason: element.diedReason });
+
+    this.totalAliveElement--;
   }
 
-  async sendTx(localElement) {
-    localElement.state = STATE.busy;
+  async waitNewBlock(lastCheckBlock) {
+    for (let lastBlock; ; await sleep(process.configDefault.AWAIT_GET_BLOCK)) {
+      lastBlock = await getBlock();
 
-    const tx = await process.walletManager.sendTx(await this.getTx(localElement));
-
-    if (tx instanceof Error){
-      localElement.state = STATE.error;
-      localElement.waitOnError = (2 * localElement.errorCount) + 1;
-      localElement.errorCount++;
-    } else {
-      localElement.state = STATE.onGoing;
-      localElement.errorCount = 1;
+      if (lastCheckBlock.number != lastBlock.number)
+        return lastBlock;
     }
+  }
+
+  // Abstract functions
+
+  async elementsLength() {
+    throw new Error('Not implement: elementsLength');
+  }
+
+  async createElement(elementId) {
+    throw new Error('Not implement: createElement');
+  }
+
+  async isAlive(element) {
+    throw new Error('Not implement: isAlive');
+  }
+
+  async canSendTx(element) {
+    throw new Error('Not implement: canSendTx');
+  }
+
+  async sendTx(element) {
+    throw new Error('Not implement: sendTx');
+  }
+
+  // Log Abstract functions
+
+  async elementsAliveLog() {
+    throw new Error('Not implement: elementsAliveLog');
+  }
+
+  // Report Abstract functions
+
+  async reportNewElement(element) {
+    throw new Error('Not implement: reportNewElement');
+  }
+
+  async reportEndElement(element) {
+    throw new Error('Not implement: reportEndElement');
+  }
+
+  async reportError(element, funcName, error) {
+    throw new Error('Not implement: reportError');
   }
 };

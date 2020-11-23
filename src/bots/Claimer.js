@@ -1,93 +1,109 @@
 const Bot = require('./Bot.js');
-const { DEBT_STATUS, bn, address0x, bytes32, bytes320x, getLastBlock } = require('../utils/utils.js');
-const { toBaseToken } = require('../utils/utilsOracle.js');
+const api = require('../api.js');
+const { PAID_DEBT_STATUS, address0x, getOracleData } = require('../utils.js');
+
+let collMethods;
+let debtEngineMethods;
+let loanManagerMethods;
+let callManager;
 
 module.exports = class Claimer extends Bot {
   constructor() {
     super();
+
+    collMethods = process.contracts.collateral.methods;
+    debtEngineMethods = process.contracts.debtEngine.methods;
+    loanManagerMethods = process.contracts.loanManager.methods;
+    callManager = process.callManager;
   }
 
-  elementsLog (elementLength) {
-    console.log('#Claimer/Total Entries:', bn(elementLength).sub(bn(1)).toString());
+  async elementsLength() {
+    return await callManager.multiCall(collMethods.getEntriesLength());
   }
 
-  async elementsLength () {
-    return process.contracts.collateral.methods.getEntriesLength().call();
-  }
-
-  async createElement (elementId) {
-    const entry = await process.contracts.collateral.methods.entries(elementId).call();
-    const owner = await process.contracts.collateral.methods.ownerOf(elementId).call();
-    const debt = (await process.contracts.debtEngine.methods.debts(entry.debtId).call());
+  async createElement(id) {
+    const entry = await callManager.multiCall(collMethods.entries(id));
+    const debt = await callManager.multiCall(debtEngineMethods.debts(entry.debtId));
 
     return {
-      entryId: elementId,
-      owner: owner,
-      debtId: entry.debtId,
-      oracle: entry.oracle,
-      token: bn(entry.token),
-      liquidationRatio: bn(entry.liquidationRatio),
-      balanceRatio: bn(entry.balanceRatio),
-      sender: address0x,
-      debt: {
-        model: debt.model,
-        oracle: debt.oracle,
-      },
+      id,
+      entry,
+      debtOracle: debt.oracle,
+      diedReason: undefined,
     };
   }
 
-  async canSendTx (localElement) {
-    return await this.isAlive(localElement) &&
-      (await this.isInLiquidation(localElement) || await this.isExpired(localElement));
+  async isAlive(element) {
+    if (element.diedReason)
+      return;
+
+    element.entry = await callManager.multiCall(collMethods.entries(element.id));
+    if (!element.entry) { // If the entry was deleted
+      element.diedReason = 'The entry was deleted or not exist';
+      return;
+    }
+
+    const status = await callManager.multiCall(loanManagerMethods.getStatus(element.entry.debtId));
+
+    if (status instanceof Error) {
+      element.diedReason = 'Error on call: getStatus()';
+    } else if (status === PAID_DEBT_STATUS) {
+      element.diedReason = 'The debt of the entry was paid';
+    }
   }
 
-  async getTx (localElement) {
-    return process.contracts.collateral.methods.claim(
-      address0x,
-      localElement.debtId,
-      '0x' // TODO: send the oracle data
-    );
-  }
+  async canSendTx(element) {
+    const debtToEntry = await callManager.multiCall(collMethods.debtToEntry(element.entry.debtId));
 
-  async isAlive (localEntry) {
-    const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
-
-    if (!entry) // If the entry was deleted
+    if (element.entry.amount == 0 || debtToEntry == 0)
       return false;
 
-    const debtToEntry = await process.contracts.collateral.methods.debtToEntry(localEntry.debtId).call();
-    const isCosigned = bytes32(debtToEntry) !== bytes320x;
+    const resp = await callManager.call(collMethods.canClaim(
+      element.entry.debtId,
+      await getOracleData(element.debtOracle)
+    ));
 
-    const debtStatus = await process.contracts.loanManager.methods.getStatus(localEntry.debtId).call();
-    const isPaid = bn(debtStatus).eq(DEBT_STATUS.paid);
-    const isInAuction = await process.contracts.collateral.methods.inAuction(localEntry.entryId).call();
-
-    return isCosigned && !isPaid && !isInAuction;
+    return !(resp instanceof Error) && resp;
   }
 
-  async isExpired (localEntry) {
-    process.contracts.model.options.address = localEntry.debt.model;
-    const dueTime = await process.contracts.model.methods.getDueTime(localEntry.entryId).call();
+  async sendTx(element) {
+    const debtOracleData = await getOracleData(element.debtOracle);
 
-    const lastBlock = await getLastBlock();
-    const now = lastBlock.timestamp;
+    await api.report('Entries', 'Send Claim', element);
 
-    return now > dueTime;
+    const tx = await process.walletManager.sendTx(
+      collMethods.claim(
+        address0x,
+        element.entry.debtId,
+        debtOracleData
+      )
+    );
+
+    element.tx = tx;
+    await api.report('Entries', 'Complete Claim', element);
+
+    if (tx instanceof Error) {
+      this.reportError( element, 'sendTx', tx);
+      element.diedReason = 'Error on send the tx';
+    }
   }
 
-  async isInLiquidation (localEntry) {
-    const entry = await process.contracts.collateral.methods.entries(localEntry.entryId).call();
-    const entryAmountInTokens = await toBaseToken(localEntry.oracle, bn(entry.amount));
-    const obligationInToken = await this.obligationInToken(localEntry);
-    const ratio = bn(entryAmountInTokens).div(bn(obligationInToken));
-
-    return ratio.lt(localEntry.liquidationRatio);
+  elementsAliveLog() {
+    console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
+    const entriesOnError = this.elementsDiedReasons.filter(e => e.reason !== 'The debt of the entry was paid');
+    if (entriesOnError.length)
+      console.log('\tEntries on error:', entriesOnError.map(e => e.id));
   }
 
-  async obligationInToken (localEntry) {
-    process.contracts.model._address = localEntry.debt.model;
-    const obligation = bn(await process.contracts.model.methods.getClosingObligation(localEntry.debtId).call());
+  async reportNewElement(element) {
+    await api.report('Entries', 'New element', element);
+  }
 
-    return toBaseToken(localEntry.oracle, obligation);
+  async reportEndElement(element) {
+    await api.report('Entries', 'End element', element);
+  }
+
+  async reportError(element, funcName, error) {
+    await api.report('EntriesErrors', { element, funcName, error });
   }
 };

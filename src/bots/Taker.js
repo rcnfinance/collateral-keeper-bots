@@ -1,81 +1,134 @@
 const Bot = require('./Bot.js');
-const { bn, STATE } = require('../utils/utils.js');
-const { getOracleData } = require('../utils/utilsOracle.js');
+const api = require('../api.js');
+const { getOracleData, bn } = require('../utils.js');
+
+let auctionMethods;
+let collMethods;
+let takeMethods;
+let callManager;
 
 module.exports = class Taker extends Bot {
   constructor() {
     super();
+
+    auctionMethods = process.contracts.auction.methods;
+    collMethods = process.contracts.collateral.methods;
+    takeMethods = process.contracts.auctionTakeHelper.methods;
+    callManager = process.callManager;
   }
 
-  elementsLog (elementLength) {
-    console.log('#Taker/Total Auctions:', bn(elementLength).sub(bn(1)).toString());
+  async init() {
+    this.baseToken = await callManager.multiCall(collMethods.loanManagerToken());
   }
 
-  async elementsLength () {
-    return process.contracts.auction.methods.getAuctionsLength().call();
+  async elementsLength() {
+    return await callManager.multiCall(auctionMethods.getAuctionsLength());
   }
 
-  async createElement (elementId) {
-    const entryId = await process.contracts.collateral.methods.auctionToEntry(elementId).call();
-    const entry = await process.contracts.collateral.methods.entries(entryId).call();
-    const debt = (await process.contracts.debtEngine.methods.debts(entry.debtId).call());
-    const auction = await process.contracts.auction.methods.auctions(elementId).call();
+  async createElement(id) {
+    const auction = await callManager.multiCall(auctionMethods.auctions(id));
+
+    const entryId = await callManager.multiCall(collMethods.auctionToEntry(id));
+    const entry = await callManager.multiCall(collMethods.entries(entryId));
+    const debt = await callManager.multiCall(process.contracts.debtEngine.methods.debts(entry.debtId));
 
     return {
-      debt: {
-        model: debt.model,
-        oracle: debt.oracle,
-      },
-      id: elementId,
-      fromToken: auction.fromToken,
-      startTime: auction.startTime,
-      limitDelta: auction.limitDelta,
-      startOffer: auction.startOffer,
-      amount: auction.amount,
-      limit: auction.limit,
+      id,
+      auction,
+      debtOracle: debt.oracle,
     };
   }
 
-  async canSendTx (localElement) {
-    const auction = await process.contracts.auction.methods.auctions(localElement.id).call();
+  async isAlive(element) {
+    if (element.diedReason)
+      return;
 
-    if (auction.startTime == 0) {
-      localElement.state = STATE.finish;
-      return false;
-    } else {
-      return true;
-    }
-  }
+    element.auction = await callManager.multiCall(auctionMethods.auctions(element.id));
 
-  async getTx (localElement) {
-    const debtOracleData = await getOracleData(localElement.debt.oracle);
-
-    return process.walletManager.sendTx(
-      process.contracts.auction.methods.take(
-        localElement.id, // Auction id, in uint256
-        debtOracleData,  // Oracle data of the debt
-        false            // If the auction contract, call the "onTake(uint256,uint256)" function
-      )
-    );
-  }
-
-  async approveAuction() {
-    for (let i = 0; i < process.walletManager.addresses.length; i++) {
-      const address = await process.walletManager.pop();
-      const baseToken = process.contracts.baseToken;
-      const auction = process.contracts.auction;
-      const allowance = bn(await baseToken.methods.allowance(address, auction._address).call());
-
-      if (allowance.isZero()) {
-        const approveFunction = baseToken.methods.approve(
-          auction._address,
-          process.w3.utils.toTwosComplement(-1)
-        );
-
-        process.walletManager.sendTx(approveFunction, { address: address });
+    if (element.auction && element.auction.amount != 0) {
+      if (element.auction.fromToken == this.baseToken && !process.configDefault.SUBSIDEZE_TAKE_IN_BASETOKEN) {
+        element.diedReason = 'The auction was now subsideze';
       }
-
-      process.walletManager.push(address);
+    } else {
+      element.diedReason = 'The auction was bougth or not exists';
     }
+  }
+
+  async canSendTx(element) {
+    try {
+      const debtOracleData = await getOracleData(element.debtOracle);
+      element.method = {
+        func: takeMethods.take(
+          element.id,     // Auction id, in uint256
+          debtOracleData, // Oracle data of the debt
+          0               // Amount what should be win in weth
+        )
+      };
+
+      element.method.gas = await process.walletManager.estimateGas(element.method.func);
+      element.method.gasPrice = await process.web3.eth.getGasPrice();
+
+      if (element.auction.fromToken == this.baseToken) {
+        // The fromToken is in baseToken
+        return process.configDefault.SUBSIDEZE_TAKE_IN_BASETOKEN;
+      } else {
+        // Calc profit in weth
+        element.method.func.arguments[2] = bn(process.configDefault.AUCTION_TAKER_PROFIT);
+        if (!process.configDefault.SUBSIDEZE_TX_TAKE) {
+          const profit = bn(element.method.gasPrice).mul(bn(element.method.gas));
+          element.method.func.arguments[2] = element.method.func.arguments[2].add(profit);
+        }
+
+        element.method.gas = await process.walletManager.estimateGas(element.method.func);
+
+        if (element.method.gas instanceof Error)
+          return false;
+
+        return true;
+      }
+    } catch (error) {
+      api.reportError(element, 'canSendTx', error);
+      console.log(error);
+      return false;
+    }
+  }
+
+  async sendTx(element) {
+    await api.report('Auctions', 'Send Claim', element);
+
+    const tx = await process.walletManager.sendTx(
+      element.method.func,
+      {
+        gas: element.method.gas,
+        gasPrice: element.method.gasPrice,
+      }
+    );
+
+    element.tx = tx;
+    await api.report('Auctions', 'Complete Claim', element);
+
+    if (tx instanceof Error) {
+      this.reportError( element, 'sendTx', tx);
+    }
+  }
+
+  elementsAliveLog() {
+    console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
+
+    const auctionsOnError = this.elementsDiedReasons.filter(e => e.reason !== 'The auction was bougth or not exists');
+    if (auctionsOnError.length)
+      console.log('\tAuctions on error:', auctionsOnError);
+  }
+
+  async reportNewElement(element) {
+    await api.report('Auctions', 'New element', element);
+  }
+
+  async reportEndElement(element) {
+    await api.report('Auctions', 'End element', element);
+  }
+
+  async reportError(element, funcName, error) {
+    await api.report('AuctionsErrors', { element, funcName, error });
   }
 };
