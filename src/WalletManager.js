@@ -23,14 +23,17 @@ module.exports = class WalletManager {
     this.address = process.web3.eth.accounts.wallet[0].address;
   }
 
-  async sendTx(func, txObj = { gas: undefined, gasPrice: undefined, value: 0 }) {
+  async sendTx(func, txObj = { }) {
     while (this.busy)
       await sleepThread();
 
     this.busy = true;
 
+    if (!txObj.value)
+      txObj.value = bn(0);
+
     if (!txObj.gas)
-      txObj.gas = await this.estimateGas(func);
+      txObj.gas = await this.estimateGas(func, txObj);
 
     if (txObj.gas instanceof Error) {
       this.busy = false;
@@ -73,11 +76,15 @@ module.exports = class WalletManager {
     return txHash;
   }
 
-  async estimateGas(func) {
+  async estimateGas(func, txObj = {}) {
+    if (!txObj.value)
+      txObj.value = bn(0);
+
     try {
       const gas = await func.estimateGas({
         from: this.address,
         gas: (await process.web3.eth.getBlock('latest')).gasLimit,
+        value: txObj.value,
       });
 
       return bn(gas).mul(bn(12000)).div(bn(10000));

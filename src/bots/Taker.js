@@ -94,7 +94,7 @@ module.exports = class Taker extends Bot {
   }
 
   async sendTx(element) {
-    await api.report('Auctions', 'Send Claim', element);
+    await api.report('Auctions', 'Send Take', element);
 
     const tx = await process.walletManager.sendTx(
       element.method.func,
@@ -105,7 +105,7 @@ module.exports = class Taker extends Bot {
     );
 
     element.tx = tx;
-    await api.report('Auctions', 'Complete Claim', element);
+    await api.report('Auctions', 'Complete Take', element);
 
     if (tx instanceof Error) {
       this.reportError( element, 'sendTx', tx);
