@@ -1,47 +1,9 @@
 /* solium-disable */
-pragma solidity ^0.6.1;
-
-
-library SafeMath {
-    using SafeMath for uint256;
-
-    function add(uint256 x, uint256 y) internal pure returns (uint256) {
-        uint256 z = x + y;
-        require(z >= x, "Add overflow");
-        return z;
-    }
-
-    function sub(uint256 x, uint256 y) internal pure returns (uint256) {
-        require(x >= y, "Sub overflow");
-        return x - y;
-    }
-
-    function mul(uint256 x, uint256 y) internal pure returns (uint256) {
-        if (x == 0) {
-            return 0;
-        }
-
-        uint256 z = x * y;
-        require(z/x == y, "Mul overflow");
-        return z;
-    }
-
-    function div(uint256 x, uint256 y) internal pure returns (uint256) {
-        require(y != 0, "Div by zero");
-        return x / y;
-    }
-
-    function muldiv(uint256 x, uint256 y, uint256 z) internal pure returns (uint256) {
-        require(z != 0, "div by zero");
-        return x.mul(y) / z;
-    }
-}
+pragma solidity ^0.8.0;
 
 
 /*  ERC 20 token */
 contract StandardToken {
-    using SafeMath for uint256;
-
     uint256 public totalSupply;
     // ERC20 events don't have an indexed _value, Trufffle has a bug when decoding
     // events, and signatures and indexes can't be mixed
@@ -53,8 +15,8 @@ contract StandardToken {
 
     function transfer(address _to, uint256 _value) public returns (bool success) {
         if (balances[msg.sender] >= _value) {
-            balances[msg.sender] = balances[msg.sender].sub(_value);
-            balances[_to] = balances[_to].add(_value);
+            balances[msg.sender] = balances[msg.sender] - _value;
+            balances[_to] = balances[_to] + _value;
             emit Transfer(msg.sender, _to, _value);
             return true;
         } else {
@@ -64,9 +26,9 @@ contract StandardToken {
 
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool success) {
         if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value) {
-            balances[_to] = balances[_to].add(_value);
-            balances[_from] = balances[_from].sub(_value);
-            allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
+            balances[_to] = balances[_to] + _value;
+            balances[_from] = balances[_from] - _value;
+            allowed[_from][msg.sender] = allowed[_from][msg.sender] - _value;
             emit Transfer(_from, _to, _value);
             return true;
         } else {
@@ -89,7 +51,7 @@ contract StandardToken {
     }
 
     function increaseApproval (address _spender, uint _addedValue) public returns (bool success) {
-        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
+        allowed[msg.sender][_spender] = allowed[msg.sender][_spender] + _addedValue;
         emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
     }
@@ -99,7 +61,7 @@ contract StandardToken {
         if (_subtractedValue > oldValue) {
             allowed[msg.sender][_spender] = 0;
         } else {
-            allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+            allowed[msg.sender][_spender] = oldValue - _subtractedValue;
         }
         emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
@@ -125,7 +87,7 @@ contract TestToken is StandardToken {
     event CreatedToken(address _address);
     event SetBalance(address _address, uint256 _balance);
 
-    constructor() public {
+    constructor() {
         emit CreatedToken(address(this));
     }
 
@@ -134,12 +96,12 @@ contract TestToken is StandardToken {
     }
 
     function buyTokens(address beneficiary) public payable {
-        uint256 tokens = msg.value.mul(PRICE);
-        balances[beneficiary] = tokens.add(balances[beneficiary]);
+        uint256 tokens = msg.value * PRICE;
+        balances[beneficiary] = tokens + balances[beneficiary];
         emit Transfer(address(0), beneficiary, tokens);
         emit Mint(beneficiary, tokens);
-        totalSupply = totalSupply.add(tokens);
-        msg.sender.transfer(msg.value);
+        totalSupply = totalSupply + tokens;
+        payable(msg.sender).transfer(msg.value);
     }
 
     function setBalance(address _address, uint256 _balance) external {
@@ -147,18 +109,18 @@ contract TestToken is StandardToken {
         emit SetBalance(_address, _balance);
         if (_balance > prevBalance) {
             // Mint tokens
-            uint256 toAdd = _balance.sub(prevBalance);
+            uint256 toAdd = _balance - prevBalance;
             emit Transfer(address(0), _address, toAdd);
             emit Mint(_address, toAdd);
-            totalSupply = totalSupply.add(toAdd);
-            balances[_address] = prevBalance.add(toAdd);
+            totalSupply = totalSupply + toAdd;
+            balances[_address] = prevBalance + toAdd;
         } else if (_balance < prevBalance) {
             // Destroy tokens
-            uint256 toDestroy = prevBalance.sub(_balance);
+            uint256 toDestroy = prevBalance - _balance;
             emit Transfer(_address, address(0), toDestroy);
             emit Destroy(_address, toDestroy);
-            totalSupply = totalSupply.sub(toDestroy);
-            balances[_address] = prevBalance.sub(toDestroy);
+            totalSupply = totalSupply - toDestroy;
+            balances[_address] = prevBalance - toDestroy;
         }
     }
 }

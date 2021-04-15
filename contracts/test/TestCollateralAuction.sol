@@ -1,6 +1,6 @@
-pragma solidity ^0.6.1;
+pragma solidity ^0.8.0;
 
-import "../interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 interface Taker{
@@ -14,7 +14,7 @@ contract TestCollateralAuction {
     uint256 public selling;
     uint256 public requesting;
 
-    constructor(IERC20 _baseToken) public {
+    constructor(IERC20 _baseToken) {
         baseToken = _baseToken;
     }
 
