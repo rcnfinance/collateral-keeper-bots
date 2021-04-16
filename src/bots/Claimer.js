@@ -1,20 +1,23 @@
 const Bot = require('./Bot.js');
-const api = require('../api.js');
-const { PAID_DEBT_STATUS, address0x, getOracleData } = require('../utils.js');
+const { PAID_DEBT_STATUS, address0x, getOracleData, getContracts } = require('../utils.js');
+const callManager = require('../CallManager.js');
+const walletManager = require('../WalletManager.js');
 
 let collMethods;
 let debtEngineMethods;
 let loanManagerMethods;
-let callManager;
 
-module.exports = class Claimer extends Bot {
+class Claimer extends Bot {
   constructor() {
     super();
+  }
 
-    collMethods = process.contracts.collateral.methods;
-    debtEngineMethods = process.contracts.debtEngine.methods;
-    loanManagerMethods = process.contracts.loanManager.methods;
-    callManager = process.callManager;
+  async init() {
+    const contracts = await getContracts();
+
+    collMethods = contracts.collateral.methods
+    debtEngineMethods = contracts.debtEngine.methods
+    loanManagerMethods = contracts.loanManager.methods
   }
 
   async elementsLength() {
@@ -69,9 +72,7 @@ module.exports = class Claimer extends Bot {
   async sendTx(element) {
     const debtOracleData = await getOracleData(element.debtOracle);
 
-    await api.report('Entries', 'Send Claim', element);
-
-    const tx = await process.walletManager.sendTx(
+    const tx = await walletManager.sendTx(
       collMethods.claim(
         address0x,
         element.entry.debtId,
@@ -80,10 +81,8 @@ module.exports = class Claimer extends Bot {
     );
 
     element.tx = tx;
-    await api.report('Entries', 'Complete Claim', element);
 
     if (tx instanceof Error) {
-      this.reportError( element, 'sendTx', tx);
       element.diedReason = 'Error on send the tx';
     }
   }
@@ -94,16 +93,6 @@ module.exports = class Claimer extends Bot {
     if (entriesOnError.length)
       console.log('\tEntries on error:', entriesOnError.map(e => e.id));
   }
-
-  async reportNewElement(element) {
-    await api.report('Entries', 'New element', element);
-  }
-
-  async reportEndElement(element) {
-    await api.report('Entries', 'End element', element);
-  }
-
-  async reportError(element, funcName, error) {
-    await api.report('EntriesErrors', { element, funcName, error });
-  }
 };
+
+module.exports = new Claimer();

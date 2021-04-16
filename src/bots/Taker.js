@@ -1,23 +1,27 @@
+const config = require('../../config.js');
 const Bot = require('./Bot.js');
-const api = require('../api.js');
-const { getOracleData, bn } = require('../utils.js');
+const { getOracleData, bn, getContracts, web3 } = require('../utils.js');
+const callManager = require('../CallManager.js');
+const walletManager = require('../WalletManager.js');
 
 let auctionMethods;
 let collMethods;
 let takeMethods;
-let callManager;
+let debtEngineMethods;
 
-module.exports = class Taker extends Bot {
+class Taker extends Bot {
   constructor() {
     super();
-
-    auctionMethods = process.contracts.auction.methods;
-    collMethods = process.contracts.collateral.methods;
-    takeMethods = process.contracts.auctionTakeHelper.methods;
-    callManager = process.callManager;
   }
 
   async init() {
+    const contracts = await getContracts();
+
+    collMethods = contracts.collateral.methods;
+    auctionMethods = contracts.auction.methods;
+    takeMethods = contracts.auctionTakeHelper.methods;
+    debtEngineMethods = contracts.debtEngine.methods;
+
     this.baseToken = await callManager.multiCall(collMethods.loanManagerToken());
   }
 
@@ -30,7 +34,7 @@ module.exports = class Taker extends Bot {
 
     const entryId = await callManager.multiCall(collMethods.auctionToEntry(id));
     const entry = await callManager.multiCall(collMethods.entries(entryId));
-    const debt = await callManager.multiCall(process.contracts.debtEngine.methods.debts(entry.debtId));
+    const debt = await callManager.multiCall(debtEngineMethods.debts(entry.debtId));
 
     return {
       id,
@@ -46,7 +50,7 @@ module.exports = class Taker extends Bot {
     element.auction = await callManager.multiCall(auctionMethods.auctions(element.id));
 
     if (element.auction && element.auction.amount != 0) {
-      if (element.auction.fromToken == this.baseToken && !process.configDefault.SUBSIDEZE_TAKE_IN_BASETOKEN) {
+      if (element.auction.fromToken == this.baseToken && !config.SUBSIDEZE_TAKE_IN_BASETOKEN) {
         element.diedReason = 'The auction was now subsideze';
       }
     } else {
@@ -65,21 +69,21 @@ module.exports = class Taker extends Bot {
         )
       };
 
-      element.method.gas = await process.walletManager.estimateGas(element.method.func);
-      element.method.gasPrice = await process.web3.eth.getGasPrice();
+      element.method.gas = await walletManager.estimateGas(element.method.func);
+      element.method.gasPrice = await web3.eth.getGasPrice();
 
       if (element.auction.fromToken == this.baseToken) {
         // The fromToken is in baseToken
-        return process.configDefault.SUBSIDEZE_TAKE_IN_BASETOKEN;
+        return config.SUBSIDEZE_TAKE_IN_BASETOKEN;
       } else {
         // Calc profit in weth
-        element.method.func.arguments[2] = bn(process.configDefault.AUCTION_TAKER_PROFIT);
-        if (!process.configDefault.SUBSIDEZE_TX_TAKE) {
+        element.method.func.arguments[2] = bn(config.AUCTION_TAKER_PROFIT);
+        if (!config.SUBSIDEZE_TX_TAKE) {
           const profit = bn(element.method.gasPrice).mul(bn(element.method.gas));
           element.method.func.arguments[2] = element.method.func.arguments[2].add(profit);
         }
 
-        element.method.gas = await process.walletManager.estimateGas(element.method.func);
+        element.method.gas = await walletManager.estimateGas(element.method.func);
 
         if (element.method.gas instanceof Error)
           return false;
@@ -87,16 +91,13 @@ module.exports = class Taker extends Bot {
         return true;
       }
     } catch (error) {
-      api.reportError(element, 'canSendTx', error);
       console.log(error);
       return false;
     }
   }
 
   async sendTx(element) {
-    await api.report('Auctions', 'Send Take', element);
-
-    const tx = await process.walletManager.sendTx(
+    const tx = await walletManager.sendTx(
       element.method.func,
       {
         gas: element.method.gas,
@@ -105,10 +106,9 @@ module.exports = class Taker extends Bot {
     );
 
     element.tx = tx;
-    await api.report('Auctions', 'Complete Take', element);
 
     if (tx instanceof Error) {
-      this.reportError( element, 'sendTx', tx);
+      console.log( element, 'sendTx', tx);
     }
   }
 
@@ -119,16 +119,6 @@ module.exports = class Taker extends Bot {
     if (auctionsOnError.length)
       console.log('\tAuctions on error:', auctionsOnError);
   }
-
-  async reportNewElement(element) {
-    await api.report('Auctions', 'New element', element);
-  }
-
-  async reportEndElement(element) {
-    await api.report('Auctions', 'End element', element);
-  }
-
-  async reportError(element, funcName, error) {
-    await api.report('AuctionsErrors', { element, funcName, error });
-  }
 };
+
+module.exports = new Taker();

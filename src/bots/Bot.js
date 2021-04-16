@@ -1,5 +1,5 @@
+const config = require('../../config.js');
 const { sleepThread, sleep, bytes32, getBlock } = require('../utils.js');
-const api = require('../api.js');
 
 module.exports = class Bot {
   constructor() {
@@ -21,8 +21,6 @@ module.exports = class Bot {
       if (elementLength != prevElementLength)
         this.elementsAliveLog();
 
-      api.report('lastProcessBlock', '', this.lastProcessBlock);
-
       this.lastProcessBlock = await this.waitNewBlock(this.lastProcessBlock);
 
       prevElementLength = elementLength;
@@ -33,7 +31,6 @@ module.exports = class Bot {
     this.totalAliveElement++;
 
     const element = await this.createElement(bytes32(elementId));
-    await this.reportNewElement(element);
 
     await this.isAlive(element);
 
@@ -50,14 +47,13 @@ module.exports = class Bot {
       await this.isAlive(element);
     }
 
-    await this.reportEndElement(element);
     this.elementsDiedReasons.push({ id: element.id, reason: element.diedReason });
 
     this.totalAliveElement--;
   }
 
   async waitNewBlock(lastCheckBlock) {
-    for (let lastBlock; ; await sleep(process.configDefault.AWAIT_GET_BLOCK)) {
+    for (let lastBlock; ; await sleep(config.AWAIT_GET_BLOCK)) {
       lastBlock = await getBlock();
 
       if (lastCheckBlock.number != lastBlock.number)
@@ -91,19 +87,5 @@ module.exports = class Bot {
 
   async elementsAliveLog() {
     throw new Error('Not implement: elementsAliveLog');
-  }
-
-  // Report Abstract functions
-
-  async reportNewElement(element) {
-    throw new Error('Not implement: reportNewElement');
-  }
-
-  async reportEndElement(element) {
-    throw new Error('Not implement: reportEndElement');
-  }
-
-  async reportError(element, funcName, error) {
-    throw new Error('Not implement: reportError');
   }
 };

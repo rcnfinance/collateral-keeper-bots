@@ -1,33 +1,24 @@
-const { bn, sleepThread } = require('./utils.js');
+const {
+  web3,
+  bn,
+  sleepThread,
+  initWallet,
+} = require('./utils.js');
 
-module.exports = class WalletManager {
+let busy = false;
+
+class WalletManager {
   constructor() {
-    this.initWallet();
-    this.busy = false;
-  }
+    this.address = initWallet();
 
-  initWallet() {
-    const pk = process.configDefault.BOT_PK;
-
-    if (pk.slice(0, 2) !== '0x')
-      throw new Error('Wallet Manager/ Wrong format: \n' + pk + ', use a hex bytes32 number(with 0x on the beginning)');
-
-    if (process.web3.utils.isHexStrict(pk.slice(2)))
-      throw new Error('Wallet Manager/ There are no private keys to instance the signers: ' + pk);
-
-    const wallet = process.web3.eth.accounts.privateKeyToAccount(pk);
-    process.web3.eth.accounts.wallet.add(wallet);
-
-    console.log('# Wallet:', wallet.address);
-
-    this.address = process.web3.eth.accounts.wallet[0].address;
+    console.log('# Wallet:', this.address);
   }
 
   async sendTx(func, txObj = { }) {
-    while (this.busy)
+    while (busy)
       await sleepThread();
 
-    this.busy = true;
+    busy = true;
 
     if (!txObj.value)
       txObj.value = bn(0);
@@ -36,7 +27,7 @@ module.exports = class WalletManager {
       txObj.gas = await this.estimateGas(func, txObj);
 
     if (txObj.gas instanceof Error) {
-      this.busy = false;
+      busy = false;
       return txObj.gas;
     }
 
@@ -44,7 +35,7 @@ module.exports = class WalletManager {
 
     try {
       if (!txObj.gasPrice)
-        txObj.gasPrice = await process.web3.eth.getGasPrice();
+        txObj.gasPrice = await web3.eth.getGasPrice();
 
       console.log(
         '# Wallet Manager Send { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
@@ -58,7 +49,7 @@ module.exports = class WalletManager {
         value : txObj.value,
       });
     } catch (error) {
-      this.busy = false;
+      busy = false;
       console.log(
         '# Wallet Manager Error on sendTx { Address:', this.address, '}\n',
         '\t' + func._method.name + '(' + func.arguments + ')\n',
@@ -68,7 +59,7 @@ module.exports = class WalletManager {
       return error;
     }
 
-    this.busy = false;
+    busy = false;
     console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
       '\t' + func._method.name + '(' + func.arguments + ')\n',
       '\ttxHash:', txHash.transactionHash);
@@ -83,7 +74,7 @@ module.exports = class WalletManager {
     try {
       const gas = await func.estimateGas({
         from: this.address,
-        gas: (await process.web3.eth.getBlock('latest')).gasLimit,
+        gas: (await web3.eth.getBlock('latest')).gasLimit,
         value: txObj.value,
       });
 
@@ -97,3 +88,5 @@ module.exports = class WalletManager {
     }
   }
 };
+
+module.exports = new WalletManager();
