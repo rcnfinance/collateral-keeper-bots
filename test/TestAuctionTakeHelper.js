@@ -131,7 +131,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
           testToken.address,
           { from: notOwner }
         ),
-        'The owner should be the sender'
+        'Ownable: caller is not the owner'
       );
     });
     it('Try withdraw ETH without being the owner', async function () {
@@ -139,7 +139,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
         () => takeHelper.withdrawETH(
           { from: notOwner }
         ),
-        'The owner should be the sender'
+        'Ownable: caller is not the owner'
       );
     });
     it('Try set a router without being the owner', async function () {
@@ -148,7 +148,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
           address0x,
           { from: notOwner }
         ),
-        'The owner should be the sender'
+        'Ownable: caller is not the owner'
       );
     });
     it('Try reApprove the collateral auction without being the owner', async function () {
@@ -156,7 +156,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
         () => takeHelper.reApprove(
           { from: notOwner }
         ),
-        'The owner should be the sender'
+        'Ownable: caller is not the owner'
       );
     });
   });
