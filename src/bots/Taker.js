@@ -51,7 +51,7 @@ class Taker extends Bot {
 
     if (element.auction && element.auction.amount != 0) {
       if (element.auction.fromToken == this.baseToken && !config.SUBSIDEZE_TAKE_IN_BASETOKEN) {
-        element.diedReason = 'The auction was now subsideze';
+        element.diedReason = 'The auction was no subsideze';
       }
     } else {
       element.diedReason = 'The auction was bougth or not exists';
