@@ -6,12 +6,15 @@ import "./test/WETH9.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
 /**
   @author Victor Fage <victorfage@gmail.com>
 */
 contract AuctionTakeHelper is Ownable {
+    using SafeERC20 for IERC20;
+
     ICollateralAuction public collateralAuction;
     IERC20 public baseToken;
 
@@ -107,7 +110,7 @@ contract AuctionTakeHelper is Ownable {
     receive() external payable { }
 
     function withdrawERC20(IERC20 _token) external onlyOwner {
-        require(_token.transfer(owner(), _token.balanceOf(address(this))), "withdraw: error transfer the tokens");
+        _token.safeTransfer(owner(), _token.balanceOf(address(this)));
     }
 
     function withdrawETH() external onlyOwner {
