@@ -7,11 +7,21 @@ const {
 
 let busy = false;
 
+function log(msg, color = '') {
+  const walletColorLog = '\x1b[36m';
+  const resetColor = '\x1b[0m';
+
+  console.log(
+    walletColorLog + 'Wallet Manager: ' + resetColor +
+    color + msg, resetColor
+  );
+}
+
 class WalletManager {
   constructor() {
     this.address = initWallet();
 
-    console.log('# Wallet:', this.address);
+    log(this.address);
   }
 
   async sendTx(func, txObj = { }) {
@@ -37,8 +47,8 @@ class WalletManager {
       if (!txObj.gasPrice)
         txObj.gasPrice = await web3.eth.getGasPrice();
 
-      console.log(
-        '# Wallet Manager Send { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
+      log(
+        'Send { Address:' + this.address + 'Gas:' + txObj.gas.toString() + '}\n' +
         '\t' + func._method.name + '(' + func.arguments + ')'
       );
 
@@ -50,19 +60,23 @@ class WalletManager {
       });
     } catch (error) {
       busy = false;
-      console.log(
-        '# Wallet Manager Error on sendTx { Address:', this.address, '}\n',
-        '\t' + func._method.name + '(' + func.arguments + ')\n',
-        '\t' + error
+      log(
+        'Error on sendTx { Address:' + this.address + '}\n' +
+          '\t' + func._method.name + '(' + func.arguments + ')\n' +
+          '\t' + error,
+        '\x1b[31m'
       );
 
       return error;
     }
 
     busy = false;
-    console.log('# Wallet Manager Complete { Address:', this.address, 'Gas:', txObj.gas.toString(), '}\n',
-      '\t' + func._method.name + '(' + func.arguments + ')\n',
-      '\ttxHash:', txHash.transactionHash);
+    log(
+      'Complete { Address:' + this.address + 'Gas:' + txObj.gas.toString() + '}\n' +
+        '\t' + func._method.name + '(' + func.arguments + ')\n' +
+        '\ttxHash:' + txHash.transactionHash,
+      '\x1b[32m'
+    );
 
     return txHash;
   }
@@ -80,10 +94,12 @@ class WalletManager {
 
       return bn(gas).mul(bn(12000)).div(bn(10000));
     } catch (error) {
-      console.log(
-        '# Wallet Manager/', this.address, '/Error on estimateGas:\n',
-        '\t' + func._method.name + '(' + func.arguments + ')\n',
-        '\t' + error);
+      log(
+        'Error on estimateGas:\n' +
+          '\t' + func._method.name + '(' + func.arguments + ')\n' +
+          '\t' + error,
+        '\x1b[33m'
+      );
       return error;
     }
   }
