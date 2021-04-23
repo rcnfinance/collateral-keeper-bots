@@ -70,6 +70,10 @@ class Taker extends Bot {
       };
 
       element.method.gas = await walletManager.estimateGas(element.method.func);
+
+      if (element.method.gas instanceof Error)
+        return false;
+
       element.method.gasPrice = await web3.eth.getGasPrice();
 
       if (element.auction.fromToken == this.baseToken) {
