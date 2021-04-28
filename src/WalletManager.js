@@ -74,7 +74,7 @@ class WalletManager {
     log(
       'Complete { Address:' + this.address + 'Gas:' + txObj.gas.toString() + '}\n' +
         '\t' + func._method.name + '(' + func.arguments + ')\n' +
-        '\ttxHash:' + txHash.transactionHash,
+        '\ttxHash: ' + txHash.transactionHash,
       '\x1b[32m'
     );
 
