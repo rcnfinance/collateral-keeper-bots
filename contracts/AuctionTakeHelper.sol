@@ -78,7 +78,7 @@ contract AuctionTakeHelper is Ownable {
         address[] memory path = new address[](2);
 
         if (_fromToken != WETH) {
-            _fromToken.approve(address(router), _amountGet);
+            _fromToken.safeApprove(address(router), _amountGet);
 
             // Converting fromToken to WETH
             path[0] = address(_fromToken);
@@ -123,7 +123,7 @@ contract AuctionTakeHelper is Ownable {
     }
 
     function reApprove() public onlyOwner {
-        WETH.approve(address(router), type(uint256).max);
-        baseToken.approve(address(collateralAuction), type(uint256).max);
+        WETH.safeApprove(address(router), type(uint256).max);
+        baseToken.safeApprove(address(collateralAuction), type(uint256).max);
     }
 }
