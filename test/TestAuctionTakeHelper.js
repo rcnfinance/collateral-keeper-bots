@@ -87,6 +87,9 @@ contract('Test AuctionTakeHelper', function (accounts) {
     await addLiquidityETH(testToken, toETH(1), toETH(1));
 
     takeHelper = await AuctionTakeHelper.new(auction.address, router.address, { from: owner });
+
+    await takeHelper.setPath([testToken.address, weth.address], { from: owner });
+    await takeHelper.setPath([weth.address, baseToken.address], { from: owner });
   });
 
   it('Check constructor', async function () {
@@ -146,14 +149,6 @@ contract('Test AuctionTakeHelper', function (accounts) {
       await tryCatchRevert(
         () => takeHelper.setRouter(
           address0x,
-          { from: notOwner }
-        ),
-        'Ownable: caller is not the owner'
-      );
-    });
-    it('Try reApprove the collateral auction without being the owner', async function () {
-      await tryCatchRevert(
-        () => takeHelper.reApprove(
           { from: notOwner }
         ),
         'Ownable: caller is not the owner'
@@ -259,7 +254,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
           0,
           { from: owner }
         ),
-        'onTake: The sender should be the collateralAuction'
+        'AuctionTakeHelper: onTake:: The sender should be the collateralAuction'
       );
     });
     it('1) Try take a auction and dont get profit in base token', async function () {
@@ -267,7 +262,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
       auction.setRequesting(0);
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
-        'take: dont get profit'
+        'AuctionTakeHelper: take:: dont get profit'
       );
     });
     it('2) Try take a auction and dont get profit in base token', async function () {
@@ -276,7 +271,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
-        'take: dont get profit'
+        'AuctionTakeHelper: take:: dont get profit'
       );
     });
     it('Try take a auction and dont get profit in weth token', async function () {
@@ -285,7 +280,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
-        'take: dont get profit'
+        'AuctionTakeHelper: take:: dont get profit'
       );
     });
     it('1) Try take a auction and dont get profit in test token', async function () {
@@ -294,7 +289,7 @@ contract('Test AuctionTakeHelper', function (accounts) {
 
       await tryCatchRevert(
         () => takeHelper.take(0, [], 1, { from: owner }),
-        'take: dont get profit'
+        'AuctionTakeHelper: take:: dont get profit'
       );
     });
   });
