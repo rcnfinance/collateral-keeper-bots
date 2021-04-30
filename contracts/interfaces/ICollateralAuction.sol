@@ -1,13 +1,11 @@
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 
 interface ICollateralAuction {
-    function baseToken() external returns(IERC20);
+    function baseToken() external returns(address);
 
     function auctions(uint256 _auctionId) external view returns (
-        IERC20 fromToken,    // Token that we are intending to sell
+        address fromToken,    // Token that we are intending to sell
         uint64 startTime,    // Start time of the auction
         uint32 limitDelta,   // Limit time until all collateral is offered
         uint256 startOffer,  // Start offer of `fromToken` for the requested `amount`

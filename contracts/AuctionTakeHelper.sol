@@ -6,15 +6,12 @@ import "./test/WETH9.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
 /**
   @author Victor Fage <victorfage@gmail.com>
 */
 contract AuctionTakeHelper is Ownable {
-    using SafeERC20 for IERC20;
-
     event SetPath(
         address fromToken,
         address _toToken,
@@ -31,7 +28,7 @@ contract AuctionTakeHelper is Ownable {
 
     constructor(ICollateralAuction _collateralAuction, IUniswapV2Router02 _router) {
         collateralAuction = _collateralAuction;
-        baseToken = address(collateralAuction.baseToken());
+        baseToken = _collateralAuction.baseToken();
 
         setRouter(_router);
         reApprove();
@@ -60,20 +57,20 @@ contract AuctionTakeHelper is Ownable {
     }
 
     function getProfitAmount(uint256 _auctionId) external view returns(uint256) {
-        (IERC20 fromToken,,,,,) = collateralAuction.auctions(_auctionId);
+        (address fromToken,,,,,) = collateralAuction.auctions(_auctionId);
 
-        if (address(fromToken) == baseToken)
+        if (fromToken == baseToken)
             return 0;
 
         (uint256 amountGet, uint256 amountReturn) = collateralAuction.offer(_auctionId);
 
         uint256[] memory amounts;
 
-        if (address(fromToken) != WETH) {
+        if (fromToken != WETH) {
             // Calculate amount get in WETH, converting fromToken to WETH
             amounts = router.getAmountsIn(
                 amountGet,
-                paths[keccak256(abi.encodePacked(address(fromToken), WETH))]
+                paths[keccak256(abi.encodePacked(fromToken, WETH))]
             );
             amountGet = amounts[1];
         }
@@ -144,7 +141,7 @@ contract AuctionTakeHelper is Ownable {
     receive() external payable { }
 
     function withdrawERC20(IERC20 _token) external onlyOwner {
-        _token.safeTransfer(owner(), _token.balanceOf(address(this)));
+        _token.transfer(owner(), _token.balanceOf(address(this)));
     }
 
     function withdrawETH() external onlyOwner {
