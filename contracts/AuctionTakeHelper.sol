@@ -153,7 +153,7 @@ contract AuctionTakeHelper is Ownable {
 
     function setRouter(IUniswapV2Router02 _router) public onlyOwner {
         router = _router;
-        WETH = router.WETH();
+        WETH = _router.WETH();
     }
 
     function reApprove() public {
