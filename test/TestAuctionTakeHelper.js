@@ -191,6 +191,19 @@ contract('Test AuctionTakeHelper', function (accounts) {
     });
   });
   describe('Wins function take', function () {
+    it('Should take the auction withour setPath', async function () {
+      const takeHelper2 = await AuctionTakeHelper.new(auction.address, router.address, { from: owner });
+
+      const prevBal = await web3.eth.getBalance(owner);
+
+      auction.setSelling(testToken.address, 102);
+      auction.setRequesting(100);
+      await takeHelper2.take(0, [], 0);
+
+      expect(await testToken.balanceOf(takeHelper2.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(takeHelper2.address)).to.eq.BN(0);
+      expect(await web3.eth.getBalance(owner)).to.eq.BN(prevBal);
+    });
     it('Should take the auction in base token', async function () {
       auction.setSelling(baseToken.address, 0);
       auction.setRequesting(0);

@@ -41,7 +41,10 @@ contract AuctionTakeHelper is Ownable {
     function _getSetPath(address _fromToken, address _toToken) internal returns(address[] memory path) {
         path = paths[keccak256(abi.encodePacked(_fromToken, _toToken))];
 
-        if (path.length != 0) {
+        if (path.length == 0) {
+            path = new address[](2);
+            path[0] = _fromToken;
+            path[1] = _toToken;
             _setPath(path);
         }
     }
