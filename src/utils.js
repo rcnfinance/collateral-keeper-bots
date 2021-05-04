@@ -21,6 +21,19 @@ const DEBT_STATUS = {
   error: bn(4),
 };
 
+const bright = '\x1b[1m';
+const STR = {
+  reset: '\x1b[0m',
+  // color
+  default: '',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m' + bright,
+  magenta: '\x1b[35m' + bright,
+  cyan: '\x1b[36m' + bright,
+};
+
 const address0x = '0x0000000000000000000000000000000000000000';
 const bytes320x = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -72,6 +85,8 @@ function initWallet () {
 
   const wallet = web3.eth.accounts.privateKeyToAccount(config.BOT_PK);
   web3.eth.accounts.wallet.add(wallet);
+
+  console.log('Init Wallet: ' + STR.green + wallet.address + STR.reset);
 
   return wallet.address;
 }
@@ -155,4 +170,5 @@ module.exports = {
   initWallet,
   getContracts,
   getOracleData,
+  STR,
 };

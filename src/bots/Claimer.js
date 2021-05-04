@@ -1,11 +1,13 @@
-const Bot = require('./Bot.js');
-const { PAID_DEBT_STATUS, address0x, getOracleData, getContracts } = require('../utils.js');
+const { Bot, totalAliveElement, elementsDiedReasons } = require('./Bot.js');
+const { PAID_DEBT_STATUS, address0x, getOracleData, getContracts, STR } = require('../utils.js');
 const callManager = require('../CallManager.js');
 const walletManager = require('../WalletManager.js');
 
 let collMethods;
 let debtEngineMethods;
 let loanManagerMethods;
+
+const headLog = STR.cyan + 'Claimer:' + STR.reset;
 
 class Claimer extends Bot {
   constructor() {
@@ -88,10 +90,20 @@ class Claimer extends Bot {
   }
 
   elementsAliveLog() {
-    console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
-    const entriesOnError = this.elementsDiedReasons.filter(e => e.reason !== 'The debt of the entry was paid');
-    if (entriesOnError.length)
-      console.log('\tEntries on error:', entriesOnError.map(e => e.id));
+    console.log(
+      headLog,
+      'Total Entries alive: ' + totalAliveElement,
+      STR.reset
+    );
+
+    const entriesOnError = elementsDiedReasons.filter(e => e.reason !== 'The debt of the entry was paid');
+    if (entriesOnError.length) {
+      console.log(
+        headLog,
+        'Entries on error:', entriesOnError.map(e => e.id),
+        STR.reset
+      );
+    }
   }
 };
 

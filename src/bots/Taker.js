@@ -1,6 +1,6 @@
 const config = require('../../config.js');
-const Bot = require('./Bot.js');
-const { getOracleData, bn, getContracts, web3 } = require('../utils.js');
+const { Bot, totalAliveElement, elementsDiedReasons } = require('./Bot.js');
+const { getOracleData, bn, getContracts, web3, STR } = require('../utils.js');
 const callManager = require('../CallManager.js');
 const walletManager = require('../WalletManager.js');
 
@@ -8,6 +8,8 @@ let auctionMethods;
 let collMethods;
 let takeMethods;
 let debtEngineMethods;
+
+const headLog = STR.blue + 'Taker:' + STR.reset;
 
 class Taker extends Bot {
   constructor() {
@@ -95,7 +97,12 @@ class Taker extends Bot {
         return true;
       }
     } catch (error) {
-      console.log(error);
+      console.log(
+        headLog,
+        COLORS.red,
+        error,
+        STR.reset
+      );
       return false;
     }
   }
@@ -112,16 +119,30 @@ class Taker extends Bot {
     element.tx = tx;
 
     if (tx instanceof Error) {
-      console.log( element, 'sendTx', tx);
+      console.log(
+        headLog,
+        COLORS.red,
+        element, 'sendTx', tx,
+        STR.reset
+      );
     }
   }
 
   elementsAliveLog() {
-    console.log('#Taker/Total Auctions alive:', this.totalAliveElement);
+    console.log(
+      headLog,
+      'Total Auctions alive: ' + totalAliveElement,
+      STR.reset
+    );
 
-    const auctionsOnError = this.elementsDiedReasons.filter(e => e.reason !== 'The auction was bougth or not exists');
-    if (auctionsOnError.length)
-      console.log('\tAuctions on error:', auctionsOnError);
+    const auctionsOnError = elementsDiedReasons.filter(e => e.reason !== 'The auction was bougth or not exists');
+    if (auctionsOnError.length) {
+      console.log(
+        headLog,
+        'Auctions on error:', auctionsOnError,
+        STR.reset
+      );
+    }
   }
 };
 

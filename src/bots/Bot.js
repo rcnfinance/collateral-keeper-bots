@@ -1,12 +1,15 @@
 const config = require('../../config.js');
-const { sleepThread, sleep, bytes32, getBlock } = require('../utils.js');
+const {
+  sleepThread,
+  sleep,
+  bytes32,
+  getBlock
+} = require('../utils.js');
 
-module.exports = class Bot {
-  constructor() {
-    this.totalAliveElement = 0;
-    this.elementsDiedReasons = [];
-  }
+let totalAliveElement = 0;
+const elementsDiedReasons = []
 
+class Bot {
   async process() {
     this.lastProcessBlock = await getBlock();
 
@@ -28,7 +31,7 @@ module.exports = class Bot {
   }
 
   async processElement(elementId) {
-    this.totalAliveElement++;
+    totalAliveElement++;
 
     const element = await this.createElement(bytes32(elementId));
 
@@ -47,9 +50,9 @@ module.exports = class Bot {
       await this.isAlive(element);
     }
 
-    this.elementsDiedReasons.push({ id: element.id, reason: element.diedReason });
+    elementsDiedReasons.push({ id: element.id, reason: element.diedReason });
 
-    this.totalAliveElement--;
+    totalAliveElement--;
   }
 
   async waitNewBlock(lastCheckBlock) {
@@ -89,3 +92,9 @@ module.exports = class Bot {
     throw new Error('Not implement: elementsAliveLog');
   }
 };
+
+module.exports = {
+  Bot,
+  totalAliveElement,
+  elementsDiedReasons,
+}
