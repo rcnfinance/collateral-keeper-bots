@@ -1,11 +1,15 @@
-const { sleepThread, sleep, bytes32, getBlock } = require('../utils.js');
-const api = require('../api.js');
+const config = require('../../config.js');
+const {
+  sleepThread,
+  sleep,
+  bytes32,
+  getBlock
+} = require('../utils.js');
 
-module.exports = class Bot {
-  constructor() {
-    this.totalAliveElement = 0;
-  }
+let totalAliveElement = 0;
+const elementsDiedReasons = []
 
+class Bot {
   async process() {
     this.lastProcessBlock = await getBlock();
 
@@ -20,8 +24,6 @@ module.exports = class Bot {
       if (elementLength != prevElementLength)
         this.elementsAliveLog();
 
-      api.report('lastProcessBlock', '', this.lastProcessBlock);
-
       this.lastProcessBlock = await this.waitNewBlock(this.lastProcessBlock);
 
       prevElementLength = elementLength;
@@ -29,14 +31,13 @@ module.exports = class Bot {
   }
 
   async processElement(elementId) {
-    this.totalAliveElement++;
+    totalAliveElement++;
 
     const element = await this.createElement(bytes32(elementId));
-    await this.reportNewElement(element);
 
-    let resp = await this.isAlive(element);
+    await this.isAlive(element);
 
-    while (resp.alive) {
+    while (!element.diedReason) {
       if (await this.canSendTx(element))
         await this.sendTx(element);
 
@@ -46,19 +47,16 @@ module.exports = class Bot {
         await sleepThread()
       );
 
-      resp = await this.isAlive(element);
+      await this.isAlive(element);
     }
 
-    if (element)
-      element.reason = resp.reason;
+    elementsDiedReasons.push({ id: element.id, reason: element.diedReason });
 
-    await this.reportEndElement(element);
-
-    this.totalAliveElement--;
+    totalAliveElement--;
   }
 
   async waitNewBlock(lastCheckBlock) {
-    for (let lastBlock; ; await sleep(process.configDefault.AWAIT_GET_BLOCK)) {
+    for (let lastBlock; ; await sleep(config.AWAIT_GET_BLOCK)) {
       lastBlock = await getBlock();
 
       if (lastCheckBlock.number != lastBlock.number)
@@ -93,18 +91,10 @@ module.exports = class Bot {
   async elementsAliveLog() {
     throw new Error('Not implement: elementsAliveLog');
   }
-
-  // Report Abstract functions
-
-  async reportNewElement(element) {
-    throw new Error('Not implement: reportNewElement');
-  }
-
-  async reportEndElement(element) {
-    throw new Error('Not implement: reportEndElement');
-  }
-
-  async reportError(element, funcName, error) {
-    throw new Error('Not implement: reportError');
-  }
 };
+
+module.exports = {
+  Bot,
+  totalAliveElement,
+  elementsDiedReasons,
+}

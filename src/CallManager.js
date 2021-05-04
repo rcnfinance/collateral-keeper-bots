@@ -1,9 +1,13 @@
-const { sleepThread } = require('./utils');
+const config = require('../config.js');
+const { sleepThread, getContracts, web3 } = require('./utils');
 
-module.exports = class CallManager {
-  constructor() {
-    this.callsBuffer = [];
-    this.multiCallsBuffer = [];
+const callsBuffer = [];
+const multiCallsBuffer = [];
+let multicall;
+
+class CallManager {
+  async init() {
+    multicall = (await getContracts()).multicall;
   }
 
   async call(method) {
@@ -11,7 +15,7 @@ module.exports = class CallManager {
       method
     };
 
-    this.callsBuffer.push(consult);
+    callsBuffer.push(consult);
 
     while (consult.response === undefined) {
       await sleepThread();
@@ -26,7 +30,7 @@ module.exports = class CallManager {
       to: method.to ? method.to : method._parent._address,
     };
 
-    this.multiCallsBuffer.push(consult);
+    multiCallsBuffer.push(consult);
 
     while (consult.response == undefined) {
       await sleepThread();
@@ -44,7 +48,7 @@ module.exports = class CallManager {
         to: methods[i].to ? methods[i].to : methods[i]._parent._address,
       });
 
-      this.multiCallsBuffer.push(consults[i]);
+      multiCallsBuffer.push(consults[i]);
     }
 
     while (consults.some(c => c.response == undefined)) {
@@ -55,15 +59,15 @@ module.exports = class CallManager {
   }
 
   async processCalls() {
-    for (let awaitCont = 0;; awaitCont += process.configDefault.AWAIT_THREAD) {
-      if (this.callsBuffer.length > 0) { // First send all simple calls
+    for (let awaitCont = 0;; awaitCont += config.AWAIT_THREAD) {
+      if (callsBuffer.length > 0) { // First send all simple calls
         await this.sendCall();
       } else {
         if (
-          this.multiCallsBuffer.length > 0 &&
+          multiCallsBuffer.length > 0 &&
           (
-            this.multiCallsBuffer.length >= process.configDefault.MAX_CALLS ||
-            awaitCont > process.configDefault.AWAIT_CALL
+            multiCallsBuffer.length >= config.MAX_CALLS ||
+            awaitCont > config.AWAIT_CALL
           )
         ) {
           await this.sendMultiCall();
@@ -78,7 +82,7 @@ module.exports = class CallManager {
   // Internal help functions
 
   async sendCall() {
-    const call = this.callsBuffer.shift();
+    const call = callsBuffer.shift();
     const method = call.method;
 
     try {
@@ -94,20 +98,20 @@ module.exports = class CallManager {
 
     try {
       const multicallArg = await this.toMulticallArg(calls);
-      const resp = await process.contracts.multicall.methods.aggregate(multicallArg).call();
+      const resp = await multicall.methods.aggregate(multicallArg).call();
       this.translateResults(calls, resp.returnData);
     } catch (error) {
       console.log('SendMultiCall', error);
       for (let i = 0; i < calls.length; i++)
-        this.multiCallsBuffer.push(calls[i]);
+        multiCallsBuffer.push(calls[i]);
     }
   }
 
   getCalls() {
     const calls = [];
 
-    for (let i = 0; i < process.configDefault.MAX_CALLS && this.multiCallsBuffer.length; i++) {
-      const call = this.multiCallsBuffer.shift();
+    for (let i = 0; i < config.MAX_CALLS && multiCallsBuffer.length; i++) {
+      const call = multiCallsBuffer.shift();
       calls.push(call);
     }
 
@@ -122,7 +126,7 @@ module.exports = class CallManager {
 
       ret.push({
         target: calls[i].to,
-        callData: process.web3.eth.abi.encodeFunctionCall(method._method, method.arguments),
+        callData: web3.eth.abi.encodeFunctionCall(method._method, method.arguments),
       });
     }
 
@@ -131,7 +135,7 @@ module.exports = class CallManager {
 
   translateResults(calls, returnData) {
     for (let i = 0; i < calls.length; i++) {
-      const aux = process.web3.eth.abi.decodeParameters(
+      const aux = web3.eth.abi.decodeParameters(
         calls[i].method._method.outputs,
         returnData[i]
       );
@@ -144,3 +148,5 @@ module.exports = class CallManager {
     }
   }
 };
+
+module.exports = new CallManager();

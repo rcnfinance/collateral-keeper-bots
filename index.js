@@ -1,18 +1,18 @@
-const init = require('./src/init.js');
-const Claimer = require('./src/bots/Claimer.js');
-const Taker = require('./src/bots/Taker.js');
+const config = require('./config.js');
+const claimer = require('./src/bots/Claimer.js');
+const taker = require('./src/bots/Taker.js');
+const callManager = require('./src/CallManager.js');
 
 async function main() {
-  await init();
-  process.callManager.processCalls();
+  await callManager.init();
+  callManager.processCalls();
 
-  if (process.claimOn) {
-    const claimer = new Claimer();
+  if (config.CLAIM) {
+    await claimer.init();
     claimer.process();
   }
 
-  if (process.takeOn) {
-    const taker = new Taker();
+  if (config.TAKE) {
     await taker.init();
     taker.process();
   }

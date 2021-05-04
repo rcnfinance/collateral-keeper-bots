@@ -1,28 +1,72 @@
-module.exports.PAID_DEBT_STATUS = '2';
+const config = require('../config.js');
+const Web3 = require('web3');
 
-module.exports.address0x = '0x0000000000000000000000000000000000000000';
-module.exports.bytes320x = '0x0000000000000000000000000000000000000000000000000000000000000000';
+console.log(config);
 
-module.exports.sleepThread = async () => {
-  return await this.sleep(process.configDefault.AWAIT_THREAD);
+const web3 = new Web3(new Web3.providers.HttpProvider(config.URL_NODE));
+
+// auctions states
+const STATE = {
+  onGoing: 'onGoing',
+  error: 'error',
+  busy: 'busy',
+  finish: 'finish',
 };
 
-module.exports.sleep = async (ms) => {
+const DEBT_STATUS = {
+  null: bn(0),
+  onGoing: bn(1),
+  paid: bn(2),
+  destroyed: bn(3),
+  error: bn(4),
+};
+
+const bright = '\x1b[1m';
+const STR = {
+  reset: '\x1b[0m',
+  // color
+  default: '',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m' + bright,
+  magenta: '\x1b[35m' + bright,
+  cyan: '\x1b[36m' + bright,
+};
+
+const address0x = '0x0000000000000000000000000000000000000000';
+const bytes320x = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+async function sleep (ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function sleepThread ()  {
+  return sleep(config.AWAIT_THREAD);
 };
 
-module.exports.bn = (number) => {
-  return process.web3.utils.toBN(number);
+function bn (number) {
+  return web3.utils.toBN(number);
+}
+
+function bytes32 (number) {
+  return web3.utils.toTwosComplement(number);
+}
+
+async function getLastBlock () {
+  let lastBlock = await web3.eth.getBlock(await web3.eth.getBlockNumber()); // This can return a null block
+
+  while (lastBlock === null) {
+    console.log('Warning: utils.getLastBlock() in utils.js, returns a null last block');
+    lastBlock = await web3.eth.getBlock(await web3.eth.getBlockNumber());
+  }
+  return lastBlock;
 };
 
-module.exports.bytes32 = (number) => {
-  return process.web3.utils.toTwosComplement(number);
-};
-
-module.exports.getBlock = async (number = 'latest') => {
-  for (let block, i = 0; ; await this.sleep(++i * 100)) {
+async function getBlock (number = 'latest') {
+  for (let block, i = 0; ; await sleep(++i * 100)) {
     try {
-      block = await process.web3.eth.getBlock(number);
+      block = await web3.eth.getBlock(number);
     } catch (error) {
       console.log('#Utils/getBLock/Error', '\n', error.message);
     }
@@ -32,7 +76,68 @@ module.exports.getBlock = async (number = 'latest') => {
   }
 };
 
-module.exports.getOracleData = async (oracle) => {
+function initWallet () {
+  if (config.BOT_PK.slice(0, 2) !== '0x')
+    throw new Error('Wallet Manager/ Wrong format: \n' + config.BOT_PK + ', use a hex bytes32 number(with 0x on the beginning)');
+
+  if (web3.utils.isHexStrict(config.BOT_PK.slice(2)))
+    throw new Error('Wallet Manager/ There are no private keys to instance the signers: ' + config.BOT_PK);
+
+  const wallet = web3.eth.accounts.privateKeyToAccount(config.BOT_PK);
+  web3.eth.accounts.wallet.add(wallet);
+
+  console.log('Init Wallet: ' + STR.green + wallet.address + STR.reset);
+
+  return wallet.address;
+}
+
+async function getContracts () {
+  const contracts = {};
+
+  contracts.multicall = await new web3.eth.Contract(
+    require('./abis/Multicall.json'),
+    config.MULTICALL_ADDRESS
+  );
+
+  contracts.auctionTakeHelper = await new web3.eth.Contract(
+    require('./abis/AuctionTakeHelper.json'),
+    config.AUCTION_TAKER_HELPER
+  );
+
+  contracts.collateral = await new web3.eth.Contract(
+    require('./abis/Collateral.json'),
+    config.COLLATERAL_ADDRESS
+  );
+
+  const auctionAddress = await contracts.collateral.methods.auction().call();
+  contracts.auction = await new web3.eth.Contract(
+    require('./abis/CollateralAuction.json'),
+    auctionAddress
+  );
+  const loanManagerAddress = await contracts.collateral.methods.loanManager().call();
+  contracts.loanManager = await new web3.eth.Contract(
+    require('./abis/LoanManager.json'),
+    loanManagerAddress
+  );
+
+  const debtEngineAddress = await contracts.loanManager.methods.debtEngine().call();
+  contracts.debtEngine = await new web3.eth.Contract(
+    require('./abis/DebtEngine.json'),
+    debtEngineAddress
+  );
+
+  const baseTokenAddress = await contracts.debtEngine.methods.token().call();
+  contracts.baseToken = await new web3.eth.Contract(
+    require('./abis/ERC20.json'),
+    baseTokenAddress
+  );
+
+  contracts.rateOracle = await new web3.eth.Contract(require('./abis/RateOracle.json'));
+
+  return contracts;
+};
+
+async function getOracleData (oracle) {
   if (oracle === this.address0x)
     return '0x';
 
@@ -51,17 +156,19 @@ module.exports.getOracleData = async (oracle) => {
   throw new Error('TODO: get oracle data from url and return the oracle data:', oracleUrl);
 };
 
-module.exports.convertToken = async (oracle, amount) => {
-  amount = this.bn(amount);
-
-  if (oracle == this.address0x)
-    return amount;
-
-  const method = process.contracts.rateOracle.methods.readSample('0x');
-  method.to = oracle;
-  const sample = await process.callManager.multiCall(
-    method
-  );
-
-  return amount.mul(this.bn(sample._tokens)).div(this.bn(sample._equivalent));
+module.exports = {
+  STATE,
+  DEBT_STATUS,
+  web3,
+  address0x,
+  bytes320x,
+  sleep,
+  sleepThread,
+  bn,
+  bytes32,
+  getBlock,
+  initWallet,
+  getContracts,
+  getOracleData,
+  STR,
 };

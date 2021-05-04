@@ -1,20 +1,25 @@
-const Bot = require('./Bot.js');
-const api = require('../api.js');
-const { PAID_DEBT_STATUS, address0x, getOracleData } = require('../utils.js');
+const { Bot, totalAliveElement, elementsDiedReasons } = require('./Bot.js');
+const { PAID_DEBT_STATUS, address0x, getOracleData, getContracts, STR } = require('../utils.js');
+const callManager = require('../CallManager.js');
+const walletManager = require('../WalletManager.js');
 
 let collMethods;
 let debtEngineMethods;
 let loanManagerMethods;
-let callManager;
 
-module.exports = class Claimer extends Bot {
+const headLog = STR.cyan + 'Claimer:' + STR.reset;
+
+class Claimer extends Bot {
   constructor() {
     super();
+  }
 
-    collMethods = process.contracts.collateral.methods;
-    debtEngineMethods = process.contracts.debtEngine.methods;
-    loanManagerMethods = process.contracts.loanManager.methods;
-    callManager = process.callManager;
+  async init() {
+    const contracts = await getContracts();
+
+    collMethods = contracts.collateral.methods
+    debtEngineMethods = contracts.debtEngine.methods
+    loanManagerMethods = contracts.loanManager.methods
   }
 
   async elementsLength() {
@@ -28,23 +33,28 @@ module.exports = class Claimer extends Bot {
     return {
       id,
       entry,
-      debtOracle: debt.oracle
+      debtOracle: debt.oracle,
+      diedReason: undefined,
     };
   }
 
   async isAlive(element) {
+    if (element.diedReason)
+      return;
+
     element.entry = await callManager.multiCall(collMethods.entries(element.id));
-    if (!element.entry) // If the entry was deleted
-      return 'The entry was deleted or not exist';
+    if (!element.entry) { // If the entry was deleted
+      element.diedReason = 'The entry was deleted or not exist';
+      return;
+    }
 
     const status = await callManager.multiCall(loanManagerMethods.getStatus(element.entry.debtId));
 
-    if (status instanceof Error)
-      return { alive: false, reason: 'Error on call: getStatus()'};
-    else if (status !== PAID_DEBT_STATUS)
-      return { alive: true };
-    else
-      return { alive: false, reason: 'The debt of the entry was paid' };
+    if (status instanceof Error) {
+      element.diedReason = 'Error on call: getStatus()';
+    } else if (status === PAID_DEBT_STATUS) {
+      element.diedReason = 'The debt of the entry was paid';
+    }
   }
 
   async canSendTx(element) {
@@ -64,9 +74,7 @@ module.exports = class Claimer extends Bot {
   async sendTx(element) {
     const debtOracleData = await getOracleData(element.debtOracle);
 
-    await api.report('Entries', 'Send Claim', element);
-
-    const tx = await process.walletManager.sendTx(
+    const tx = await walletManager.sendTx(
       collMethods.claim(
         address0x,
         element.entry.debtId,
@@ -75,26 +83,28 @@ module.exports = class Claimer extends Bot {
     );
 
     element.tx = tx;
-    await api.report('Entries', 'Complete Claim', element);
 
     if (tx instanceof Error) {
-      this.reportError( element, 'sendTx', tx);
+      element.diedReason = 'Error on send the tx';
     }
   }
 
   elementsAliveLog() {
-    console.log('#Claimer/Total Entries alive:', this.totalAliveElement);
-  }
+    console.log(
+      headLog,
+      'Total Entries alive: ' + totalAliveElement,
+      STR.reset
+    );
 
-  async reportNewElement(element) {
-    await api.report('Entries', 'New element', element);
-  }
-
-  async reportEndElement(element) {
-    await api.report('Entries', 'End element', element);
-  }
-
-  async reportError(element, funcName, error) {
-    await api.report('EntriesErrors', { element, funcName, error });
+    const entriesOnError = elementsDiedReasons.filter(e => e.reason !== 'The debt of the entry was paid');
+    if (entriesOnError.length) {
+      console.log(
+        headLog,
+        'Entries on error:', entriesOnError.map(e => e.id),
+        STR.reset
+      );
+    }
   }
 };
+
+module.exports = new Claimer();
